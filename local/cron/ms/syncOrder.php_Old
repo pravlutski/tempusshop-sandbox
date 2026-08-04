@@ -1,0 +1,577 @@
+<?php
+$_SERVER["DOCUMENT_ROOT"] = "/var/www/bitrix/data/www/tempusshop.ru";
+$DOCUMENT_ROOT = $_SERVER["DOCUMENT_ROOT"];
+
+define("NO_KEEP_STATISTIC", true);
+define("NOT_CHECK_PERMISSIONS", true);
+
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+CModule::IncludeModule("main");
+CModule::IncludeModule("iblock");
+CModule::IncludeModule('panel_manager');
+CModule::IncludeModule('panel_manager');
+
+define('MOYSKLAD_API_URL', 'https://api.moysklad.ru/api/remap/1.2');
+define('MOYSKLAD_API_LOGIN', 'bitrix@tempusint');
+define('MOYSKLAD_API_PASSWORD', 'akkxbTO88yQR');
+define('ORDERS_TO_SYNC', 1000);
+
+$CurDB = new DBPanel();
+$moduleCur = 'syncOrders';
+
+function updateStatus( string $code, array $arStat ):void
+{
+  $CurDB = new DBPanel();
+  if ( empty($arStat) ) return;
+  $strSql = "UPDATE ms_agents SET ";
+  foreach ($arStat as $field => $value) {
+    if ( array_key_last($arStat) == $field ){
+      $str = "{$field} = '{$value}'";
+    }else{
+      $str = "{$field} = '{$value}', ";
+    }
+    $strSql .= $str;
+  }
+  $strSql .= " WHERE code = '{$code}'";
+  try{
+    $CurDB->query( $strSql );
+  }catch( Throwable $ignored){
+    print_r('Не удалось обновить статус' . $ignored . "\n");
+  }
+}
+
+function getNewBitrixOrders() {
+    $CurDB = new DBPanel();
+    GLOBAL $DB;
+
+    //$result = $CurDB->query("SELECT * FROM ms_orders WHERE bitrix_id = '699158'");
+    $result = $CurDB->query("SELECT * FROM ms_orders WHERE status = '1'");
+		$rows = $CurDB->fetchAll($result);
+		foreach ($rows as $row) {
+			$ordersBD[$row['bitrix_id']] = $row;
+		}
+    if (empty($ordersBD)) {
+      print_r('Заказов нету');
+      die();
+    }
+		unset($result);
+		unset($rows);
+
+    $filter = [
+        'filter' => [
+            'ID' => array_keys($ordersBD)
+            // 'ID' => [683207]
+        ],
+        'select' => ['ID', 'DATE_INSERT', 'STATUS_ID', 'PRICE', 'CURRENCY', 'USER_DESCRIPTION', 'USER_ID','ACCOUNT_NUMBER'],
+        'order' => ['ID' => 'ASC'],
+        'limit' => ORDERS_TO_SYNC
+    ];
+
+    $dbOrders = \Bitrix\Sale\Order::getList($filter);
+    $orders = [];
+
+    while ($order = $dbOrders->fetch()) {
+        $orderObj = \Bitrix\Sale\Order::load($order['ID']);
+
+        $order['DELIVERY_PRICE'] = $orderObj->getDeliveryPrice();
+
+        $order['DB'] = $ordersBD[$order['ID']];
+        $orders[] = $order;
+    }
+
+    return $orders;
+}
+
+function getOrderProducts($orderId) {
+    $order = \Bitrix\Sale\Order::load($orderId);
+    $basket = $order->getBasket();
+    $items = [];
+
+    foreach ($basket as $basketItem) {
+        $items[] = [
+            'PRODUCT_ID' => $basketItem->getProductId(),
+            'NAME' => $basketItem->getField('NAME'),
+            'QUANTITY' => $basketItem->getQuantity(),
+            'PRICE' => $basketItem->getPrice(),
+            'CURRENCY' => $basketItem->getCurrency(),
+            'PRODUCT_XML_ID' => $basketItem->getField('PRODUCT_XML_ID') // Артикул товара
+        ];
+    }
+
+    return $items;
+}
+
+function findCounterparty($userId,$source) {
+    $ms = new MoyskladAPI($source);
+
+    $user = \Bitrix\Main\UserTable::getById($userId)->fetch();
+
+    $name = $user['LAST_NAME'] . ' ' . $user['NAME'] . ' ' . $user['SECOND_NAME'];
+    // $name = str_replace(" ", "%20", trim($name));
+    $name = urlencode(trim($name));
+
+    $agent = $ms->searchAgent($name);
+
+
+    if (!empty($agent)) {
+      $response = $agent[0]['meta'];
+    } else {
+      $response = false;
+    }
+    return $response;
+}
+
+function createCounterparty($userId,$source) {
+
+    $ms = new MoyskladAPI($source);
+
+    $user = \Bitrix\Main\UserTable::getById($userId)->fetch();
+
+    $name = $user['LAST_NAME'] . ' ' . $user['NAME'] . ' ' . $user['SECOND_NAME'];
+    // $name = urlencode(trim($name));
+    // if (empty($user['PERSONAL_PHONE'])) {
+    //   $user['PERSONAL_PHONE'] = '+799999999';
+    // }
+    $userData = [
+      'name' => $name,
+      'phone' => $user['PERSONAL_PHONE'],
+      'email' => $user['EMAIL'],
+    ];
+
+
+    $newCounter = $ms->createCounterparty($userData);
+
+    if (!empty($newCounter)) {
+      $response = $newCounter['meta'];
+    } else {
+      $response = false;
+    }
+    return $response;
+}
+
+function findOrder($orderId,$source) {
+
+    $ms = new MoyskladAPI($source);
+
+    $order = $ms->searchOrder($orderId);
+
+    if (!empty($order)) {
+      $response = $order[0]['id'];
+    } else {
+      $response = false;
+    }
+    return $response;
+}
+
+function findProduct($id,$source) {
+    GLOBAL $DB;
+    $strSql = "SELECT MS_ID FROM ci_ms_assortment WHERE BX_ID = '{$id}' AND SITE_ID = '{$source}'";
+		$results = $DB->query($strSql, false, $err_mess.__LINE__);
+		while ($row = $results->Fetch()){
+      $msId = $row['MS_ID'];
+    }
+
+    if (!empty($msId)) {
+        $data['meta'] = [
+          "href" => "https://api.moysklad.ru/api/remap/1.2/entity/product/{$msId}",
+          "type" => "product",
+          "mediaType" => "application/json"
+        ];
+
+        return $data;
+    }
+
+    return false;
+}
+
+function createMoySkladOrder($bitrixOrder, $products, $msUserSettings) {
+    $msDefault = $msUserSettings;
+    $source = $bitrixOrder['DB']['source'];
+    $ms = new MoyskladAPI($source);
+
+    if ($source == 's1') {
+      $orderStatuses = [
+        'N' => '2ff6b54f-3c86-11f0-0a80-1a9700374081', // Новый
+        'P' => '30ab4ad4-3c86-11f0-0a80-1a9700374123', // Прибыл в пункт выдачи
+        'SE' => '312a0c7b-3c86-11f0-0a80-1a9700374185', // Готов к доставке
+        'CL' => '31df1886-3c86-11f0-0a80-1a97003741b0', // Сборка
+        'Pr' => 'b74f3eca-0adb-11ea-0a80-0042000ab6d1', // Передан в службу доставки
+        'no' => '26ebfd74-3c87-11f0-0a80-1320007a4cda', // Передумал/Ошибка
+        'F' => '2862e3f9-3c87-11f0-0a80-1320007a4e5c', // Выполнен
+        'OS' => 'd4fb40b4-3cca-11f0-0a80-1410000d480c', // Нет в наличии
+        'rp' => 'e0d3105a-3cca-11f0-0a80-1410000d5658', // Возврат прибыл в ПВЗ
+        'TA' => '03d1483d-3d53-11f0-0a80-1325003afbf7', // Самовывоз
+        'CO' => '99fa66b1-3d56-11f0-0a80-1687005d92cd', // Готов к доставке
+        'RD' => 'b74f47bb-0adb-11ea-0a80-0042000ab6da', // Возврат после вручения
+      ];
+    } else {
+      $orderStatuses = [
+        'N' => 'e69805ca-180e-11ea-0a80-00ae00032ace', // Новый
+        'P' => '64d6a2cc-c599-11ea-0a80-03da0002a494', // Прибыл в пункт выдачи
+        'SE' => 'f18d5a81-180e-11ea-0a80-00ae000335b1', // Готов к доставке
+        'CL' => '2380587c-2692-11ec-0a80-076e0003f802', // Сборка
+        'Pr' => 'f220d481-180e-11ea-0a80-00ae0003366f', // Передан в службу доставки
+        'no' => '27402499-3126-11ea-0a80-042200001026', // Передумал/Ошибка
+        'F' => 'e3dc8a9f-180e-11ea-0a80-00ae00032820', // Выполнен
+        'OS' => 'f1220651-180e-11ea-0a80-00ae00033543', // Нет в наличии
+        'rp' => '0c9d2d08-9c1b-11ea-0a80-04f400034a03', // Возврат прибыл в ПВЗ
+        'TA' => 'f1130c2c-180e-11ea-0a80-00ae00033533', // Самовывоз
+        'CO' => 'f2609449-180e-11ea-0a80-00ae000336ae', // Готов к доставке
+        'RD' => 'e9564c5b-180e-11ea-0a80-00ae00032d13', // Возврат после вручения
+      ];
+    }
+
+    $counterparty = findCounterparty($bitrixOrder['USER_ID'],$bitrixOrder['DB']['source']);
+    if (empty($counterparty)) {
+      $counterparty = createCounterparty($bitrixOrder['USER_ID'],$bitrixOrder['DB']['source']);
+    }
+
+    $positions = [];
+    foreach ($products as $product) {
+
+        $msProduct = findProduct($product['PRODUCT_ID'],$source);
+
+        if (!$msProduct) {
+            continue;
+        }
+
+        $positions[] = [
+            'quantity' => (float)$product['QUANTITY'],
+            'price' => (float)$product['PRICE'] * 100,
+            'assortment' => [
+                'meta' => $msProduct['meta']
+            ]
+        ];
+
+        if (!empty($bitrixOrder['DELIVERY_PRICE'])) {
+          if ($source == 's2') {
+             $dostId = 'https://api.moysklad.ru/api/remap/1.2/entity/service/72c8db37-6dd7-11ea-0a80-00e10006fc27';
+          } else {
+             $dostId = 'https://api.moysklad.ru/api/remap/1.2/entity/service/7fe63217-0b1c-11ea-0a80-03b100002fa0';
+          }
+
+          $positions[] = [
+              'quantity' => 1,
+              'price' => (float)$bitrixOrder['DELIVERY_PRICE'] * 100,
+              'assortment' => [
+                  'meta' => [
+                    "href" => $dostId,
+                    "type" => "service",
+                    "mediaType" => "application/json"
+                  ]
+              ]
+          ];
+        }
+    }
+    if ($source == 's2') {
+       $dComp = [ "meta" => [
+          "href" => "https://api.moysklad.ru/api/remap/1.2/entity/organization/6812f6e0-aa06-11ee-0a80-138b002c126e",
+          "metadataHref" => "https://api.moysklad.ru/api/remap/1.2/entity/organization/metadata",
+          "type" => "organization",
+          "mediaType" => "application/json"
+        ]];
+       $dStore = ["meta" => [
+          "href" => "https://api.moysklad.ru/api/remap/1.2/entity/store/6f6d2169-180c-11ea-0a80-00b30004eaef",
+          "type" => "store",
+          "mediaType" => "application/json"
+        ]];
+    } else {
+       $dComp = $msDefault['defaultCompany'];
+       $dStore = $msDefault['defaultPlace'];
+    }
+
+    $orderData = [
+        'name' => $bitrixOrder['ACCOUNT_NUMBER'],
+        'organization' => $dComp,
+        'store' =>$dStore,
+        'agent' => [
+            'meta' => [
+              "href" => $counterparty['href'],
+              "type" => "counterparty",
+              "mediaType" => "application/json"
+            ]
+        ],
+        'positions' => $positions,
+        'description' => ''
+    ];
+    if ( !empty($orderStatuses[ $bitrixOrder["STATUS_ID"] ])  ){
+      $orderData['state'] = [
+        'meta' => [
+          "href" => "https://api.moysklad.ru/api/remap/1.2/entity/customerorder/metadata/states/{$orderStatuses[$bitrixOrder["STATUS_ID"]]}",
+          "type" => "state",
+          "mediaType" => "application/json"
+        ]
+      ];
+    }
+
+    // print_r($orderData);
+
+    $newId = $ms->createOrder($orderData);
+
+    if (!isset($newId['errors'])) {
+      $response = $newId;
+    }
+
+    return $newId;
+}
+
+function updateMoySkladOrder($bitrixOrder, $products, $msId) {
+    $source = $bitrixOrder['DB']['source'];
+    $ms = new MoyskladAPI($source);
+
+    if ($source == 's1') {
+      $orderStatuses = [
+        'N' => '2ff6b54f-3c86-11f0-0a80-1a9700374081', // Новый
+        'P' => '30ab4ad4-3c86-11f0-0a80-1a9700374123', // Прибыл в пункт выдачи
+        'SE' => '312a0c7b-3c86-11f0-0a80-1a9700374185', // Готов к доставке
+        'CL' => '31df1886-3c86-11f0-0a80-1a97003741b0', // Сборка
+        'Pr' => 'b74f3eca-0adb-11ea-0a80-0042000ab6d1', // Передан в службу доставки
+        'no' => '26ebfd74-3c87-11f0-0a80-1320007a4cda', // Передумал/Ошибка
+        'F' => '2862e3f9-3c87-11f0-0a80-1320007a4e5c', // Выполнен
+        'OS' => 'd4fb40b4-3cca-11f0-0a80-1410000d480c', // Нет в наличии
+        'rp' => 'e0d3105a-3cca-11f0-0a80-1410000d5658', // Возврат прибыл в ПВЗ
+        'TA' => '03d1483d-3d53-11f0-0a80-1325003afbf7', // Самовывоз
+        'CO' => '99fa66b1-3d56-11f0-0a80-1687005d92cd', // Готов к доставке
+        'RD' => 'b74f47bb-0adb-11ea-0a80-0042000ab6da', // Возврат после вручения
+      ];
+    } else {
+      $orderStatuses = [
+        'N' => 'e69805ca-180e-11ea-0a80-00ae00032ace', // Новый
+        'P' => '64d6a2cc-c599-11ea-0a80-03da0002a494', // Прибыл в пункт выдачи
+        'SE' => 'f18d5a81-180e-11ea-0a80-00ae000335b1', // Готов к доставке
+        'CL' => '2380587c-2692-11ec-0a80-076e0003f802', // Сборка
+        'Pr' => 'f220d481-180e-11ea-0a80-00ae0003366f', // Передан в службу доставки
+        'no' => '27402499-3126-11ea-0a80-042200001026', // Передумал/Ошибка
+        'F' => 'e3dc8a9f-180e-11ea-0a80-00ae00032820', // Выполнен
+        'OS' => 'f1220651-180e-11ea-0a80-00ae00033543', // Нет в наличии
+        'rp' => '0c9d2d08-9c1b-11ea-0a80-04f400034a03', // Возврат прибыл в ПВЗ
+        'TA' => 'f1130c2c-180e-11ea-0a80-00ae00033533', // Самовывоз
+        'CO' => 'f2609449-180e-11ea-0a80-00ae000336ae', // Готов к доставке
+        'RD' => 'e9564c5b-180e-11ea-0a80-00ae00032d13', // Возврат после вручения
+      ];
+    }
+
+    $positions = [];
+    // print_r($products);
+    foreach ($products as $product) {
+
+        $msProduct = findProduct($product['PRODUCT_ID'],$source);
+
+        if (!$msProduct) {
+            continue;
+        }
+
+        $positions[] = [
+            'quantity' => (float)$product['QUANTITY'],
+            'price' => (float)$product['PRICE'] * 100,
+            'assortment' => [
+                'meta' => $msProduct['meta']
+            ]
+        ];
+
+    }
+    if (!empty($bitrixOrder['DELIVERY_PRICE'])) {
+      if ($source == 's2') {
+         $dostId = 'https://api.moysklad.ru/api/remap/1.2/entity/service/72c8db37-6dd7-11ea-0a80-00e10006fc27';
+      } else {
+         $dostId = 'https://api.moysklad.ru/api/remap/1.2/entity/service/7fe63217-0b1c-11ea-0a80-03b100002fa0';
+      }
+      $positions[] = [
+          'quantity' => 1,
+          'price' => (float)$bitrixOrder['DELIVERY_PRICE'] * 100,
+          'assortment' => [
+              'meta' => [
+                "href" => $dostId,
+                "type" => "service",
+                "mediaType" => "application/json"
+              ]
+          ]
+      ];
+    }
+
+    $orderData = [
+        'positions' => $positions,
+    ];
+
+    if ( !empty($orderStatuses[ $bitrixOrder["STATUS_ID"] ])  ){
+      $orderData['state'] = [
+        'meta' => [
+          "href" => "https://api.moysklad.ru/api/remap/1.2/entity/customerorder/metadata/states/{$orderStatuses[$bitrixOrder["STATUS_ID"]]}",
+          "type" => "state",
+          "mediaType" => "application/json"
+        ]
+      ];
+    }
+    // print_r($orderData);
+    $newId = $ms->updateOrder($orderData, $msId);
+
+    // if (!isset($newId['errors'])) {
+    //   $response = $newId;
+    // }
+
+    return $newId;
+}
+
+try {
+    $timeStart = date('Y.m.d G:i:s');
+    $arStat = [
+      'status' => 'PROCESS',
+      'status_text' => 'Запуск скрипта',
+      'percent' => 0,
+      'time_start' => $timeStart
+    ];
+    updateStatus($moduleCur, $arStat);
+
+
+    $orders = getNewBitrixOrders();
+
+    if (empty($orders)) {
+        echo "Нет новых заказов для синхронизации.";
+        exit;
+    }
+
+
+    updateStatus($moduleCur, ['status_text' => 'Обрабатываем заказы', 'percent' => 20]);
+
+    if (is_array($orders)) {
+      $countOrder = count($orders);
+      $step = round(80 / $countOrder);
+      $i = 1;
+      $percent = 20;
+    }
+
+    foreach ($orders as $order) {
+        $percent = $percent + $step;
+        updateStatus($moduleCur, ['status_text' => 'Обрабатываем заказ '.$i.' из ' .$countOrder, 'percent' => $percent]);
+        $ms = new MoyskladAPI($order['DB']['source']);
+
+        $msUserSettings  = $ms->getDefault();
+        // print_r($msUserSettings);
+        // if (empty($msUserSettings["defaultCompany"])) {
+        //     echo "Не заданы настройки для компании по умолчанию";
+        //     break;
+        // }
+        //
+        // if (empty($msUserSettings["defaultPlace"])) {
+        //     echo "Не заданы настройки для склада по умолчанию";
+        //     break;
+        // }
+
+        echo "Обработка заказа #{$order['ID']}...<br>";
+        $msOrder = '';
+        $products = getOrderProducts($order['ID']);
+
+
+        if (empty($products)) {
+            echo "В заказе #{$order['ID']} нет товаров, пропускаем.<br>";
+            continue;
+        }
+
+        //new\
+
+        $ms_id = findOrder($order['ACCOUNT_NUMBER'],$order['DB']['source']);
+
+        if (!empty($ms_id)) {
+          echo "Найден в мс ОБВНОЛЯЕМ <br>";
+          $msOrder = updateMoySkladOrder($order, $products, $ms_id);
+          if (!isset($msOrder['errors'])) {
+             echo "Заказ #{$order['ID']} успешно обновлен в Мой Склад (ID: {$msOrder['id']})<br>";
+
+             $in = array(
+                  "date_change" => "'".date('Y-m-d H:i:s')."'",
+                  "action" => "'DONE'",
+                  "answer" => "'".addslashes(json_encode($msOrder, JSON_UNESCAPED_UNICODE))."'",
+                  "status" => "'0'",
+              );
+
+              $setParts = array();
+              foreach ($in as $key => $value) {
+                  $setParts[] = "$key = $value";
+              }
+              $setClause = implode(", ", $setParts);
+
+              $sql = "UPDATE ms_orders SET $setClause WHERE bitrix_id = '".$order['ID']."'";
+              $CurDB->query($sql);
+          } else {
+            echo "Ошибка при создании обновлении #{$order['ID']} <br>";
+            $in = array(
+                 "date_change" => "'".date('Y-m-d H:i:s')."'",
+                 "action" => "'ERROR'",
+                 "answer" => "'".addslashes(json_encode($msOrder, JSON_UNESCAPED_UNICODE))."'",
+                 "status" => "'1'",
+             );
+
+             $setParts = array();
+             foreach ($in as $key => $value) {
+                 $setParts[] = "$key = $value";
+             }
+             $setClause = implode(", ", $setParts);
+
+             $sql = "UPDATE ms_orders SET $setClause WHERE bitrix_id = '".$order['ID']."'";
+             $CurDB->query($sql);
+          }
+        } else {
+          echo "Не найден в мс СОЗДАЕМ <br>";
+          $msOrder = createMoySkladOrder($order, $products, $msUserSettings);
+          if (!isset($msOrder['errors'])) {
+             echo "Заказ #{$order['ID']} успешно создан в Мой Склад (ID: {$msOrder['id']})<br>";
+
+             $in = array(
+                  "date_insert_ms" => "'".date('Y-m-d H:i:s')."'",
+                  "date_change" => "'".date('Y-m-d H:i:s')."'",
+                  "action" => "'DONE'",
+                  "answer" => "'".addslashes(json_encode($msOrder, JSON_UNESCAPED_UNICODE))."'",
+                  "status" => "'0'",
+              );
+
+              $setParts = array();
+              foreach ($in as $key => $value) {
+                  $setParts[] = "$key = $value";
+              }
+              $setClause = implode(", ", $setParts);
+
+              $sql = "UPDATE ms_orders SET $setClause WHERE bitrix_id = '".$order['ID']."'";
+              $CurDB->query($sql);
+          } else {
+            echo "Ошибка при создании заказа #{$order['ID']} <br>";
+            $in = array(
+                 "date_change" => "'".date('Y-m-d H:i:s')."'",
+                 "action" => "'ERROR'",
+                 "answer" => "'".addslashes(json_encode($msOrder, JSON_UNESCAPED_UNICODE))."'",
+                 "status" => "'1'",
+             );
+
+             $setParts = array();
+             foreach ($in as $key => $value) {
+                 $setParts[] = "$key = $value";
+             }
+             $setClause = implode(", ", $setParts);
+
+             $sql = "UPDATE ms_orders SET $setClause WHERE bitrix_id = '".$order['ID']."'";
+             $CurDB->query($sql);
+          }
+        }
+
+    }
+
+    echo "Синхронизация завершена. Обработано заказов: " . count($orders) . "<br>";
+
+
+
+    $timeEnd = date('Y.m.d G:i:s');
+    $arStat = [
+      'status' => 'COMPLETE',
+      'status_text' => 'Завершено',
+      'percent' => 100,
+      'time_end' => $timeEnd
+    ];
+    updateStatus($moduleCur, $arStat);
+
+
+} catch (Exception $e) {
+    echo "Ошибка: " . $e->getMessage();
+    \Bitrix\Main\Diag\Debug::writeToFile($e->getMessage(), "Ошибка синхронизации", "moysklad_integration.log");
+    exit(1);
+}
+
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");

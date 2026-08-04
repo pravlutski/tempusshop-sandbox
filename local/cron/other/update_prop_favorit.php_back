@@ -1,0 +1,58 @@
+#!/usr/bin/php
+<?php
+//#!/usr/local/php/bin/php -q
+// 
+$_SERVER["DOCUMENT_ROOT"] = "/var/www/bitrix/data/www/tempusshop.ru";
+$DOCUMENT_ROOT = $_SERVER["DOCUMENT_ROOT"];
+
+define("NO_KEEP_STATISTIC", true);
+define("NOT_CHECK_PERMISSIONS", true);
+
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+set_time_limit(3600);
+
+CModule::IncludeModule("iblock");
+CModule::IncludeModule("main");
+
+// устанавливаем галку в свойстве "Наши предложения" для товаров которые в ТОПе
+$arNeed = $arAlready = array();
+
+// выбираем все товары на которые надо установить галку
+
+$strSql = "SELECT bitrix_id FROM ci_top_models GROUP BY bitrix_id";
+$results = $DB->Query($strSql, false, $err_mess.__LINE__);
+while ($row = $results->Fetch()){
+	$arNeed[$row["bitrix_id"]] = $row["bitrix_id"];
+}
+
+// выбираем все товары где галка уже стоит
+
+$arSelect = array("ID", "PROPERTY_FAVORIT_ITEM");//, "PROPERTY_FLG_PRODUCT_AVAILABLE");
+$arFilter = Array(
+	"IBLOCK_ID" => 16, 
+	"PROPERTY_FAVORIT_ITEM" => 1125
+);
+$res = CIBlockElement::GetList([], $arFilter, false, false, $arSelect);
+while($arFld = $res->GetNext()){
+	$arAlready[$arFld["ID"]] = $arFld["ID"];
+}
+
+// ставим галку если надо
+foreach($arNeed as $ID){
+	if(!$arAlready[$ID]){
+		// устанавливаем если галка не стоит
+		CIBlockElement::SetPropertyValueCode($ID, "FAVORIT_ITEM", 1125);  
+		
+	}
+}
+
+// снимаем галку у не нужных
+foreach($arAlready as $ID){
+	if(!$arNeed[$ID]){
+		// снимаем галку
+		CIBlockElement::SetPropertyValueCode($ID, "FAVORIT_ITEM", false);  
+
+	}
+}
+
+?>

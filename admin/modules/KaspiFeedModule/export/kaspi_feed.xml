@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<kaspi_catalog xmlns="kaspiShopping" date="2024-06-06T12:58:20+05:00" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="kaspiShopping http://kaspi.kz/kaspishopping.xsd">
+  <company>ТОО "Вотчес-Маркет"</company>
+  <merchantid>30294326</merchantid>
+  <offers>
+    <offer sku="180329">
+      <model>Мужские наручные часы George Kini Traveller GK.TR0004</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>94949</price>
+    </offer>
+    <offer sku="180330">
+      <model>Мужские наручные часы George Kini Traveller GK.TR0003</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>94949</price>
+    </offer>
+    <offer sku="180331">
+      <model>Мужские наручные часы George Kini Traveller GK.TR0001</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>94949</price>
+    </offer>
+    <offer sku="180332">
+      <model>Женские наручные часы George Kini Sagittarius GK.SGW0005</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>112199</price>
+    </offer>
+    <offer sku="180333">
+      <model>Женские наручные часы George Kini Sagittarius GK.SGW0004</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>112199</price>
+    </offer>
+    <offer sku="180336">
+      <model>Женские наручные часы George Kini Sagittarius GK.SGW0001</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>112199</price>
+    </offer>
+    <offer sku="180337">
+      <model>Мужские наручные часы George Kini Sagittarius GK.SG0002</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>109889</price>
+    </offer>
+    <offer sku="180339">
+      <model>Женские наручные часы George Kini Princess GK.PS0002</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>123999</price>
+    </offer>
+    <offer sku="180340">
+      <model>Женские наручные часы George Kini Princess GK.PS0001</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>123999</price>
+    </offer>
+    <offer sku="180342">
+      <model>Мужские наручные часы George Kini Insider GK.INS0001</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>101649</price>
+    </offer>
+    <offer sku="180348">
+      <model>Женские наручные часы George Kini Elegance GK.EL0002</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>76649</price>
+    </offer>
+    <offer sku="180350">
+      <model>Женские наручные часы George Kini Citylife GK.CL0002</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>91099</price>
+    </offer>
+    <offer sku="180351">
+      <model>Женские наручные часы George Kini Citylife GK.CL0001</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>91099</price>
+    </offer>
+    <offer sku="180366">
+      <model>Женские наручные часы George Kini Passion GK.36.6.2B.2R.7.2.0</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>102213</price>
+    </offer>
+    <offer sku="180990">
+      <model>Мужские наручные часы George Kini Traveller GK.TR0002</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>94949</price>
+    </offer>
+    <offer sku="182402">
+      <model>Мужские наручные часы George Kini Individual GK.IND0001</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>86785</price>
+    </offer>
+    <offer sku="182403">
+      <model>Мужские наручные часы George Kini Individual GK.IND0002</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>93999</price>
+    </offer>
+    <offer sku="182404">
+      <model>Мужские наручные часы George Kini Individual GK.IND00012</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>81385</price>
+    </offer>
+    <offer sku="182405">
+      <model>Мужские наручные часы George Kini Individual GK.IND00011</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>105499</price>
+    </offer>
+    <offer sku="182453">
+      <model>Мужские наручные часы George Kini Insider GK.INS0004</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>110599</price>
+    </offer>
+    <offer sku="182465">
+      <model>Женские наручные часы George Kini Special Edition GK.SPI0001</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>103599</price>
+    </offer>
+    <offer sku="182466">
+      <model>Женские наручные часы George Kini Special Edition GK.SPI0002</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>103599</price>
+    </offer>
+    <offer sku="182467">
+      <model>Женские наручные часы George Kini Special Edition GK.SPI0003</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>103599</price>
+    </offer>
+    <offer sku="182468">
+      <model>Женские наручные часы George Kini Special Edition GK.SPI0004</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>99089</price>
+    </offer>
+    <offer sku="182469">
+      <model>Женские наручные часы George Kini Special Edition GK.SPI0005</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>114099</price>
+    </offer>
+    <offer sku="182548">
+      <model>Женские наручные часы George Kini Elegance GK.EL0010</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>98949</price>
+    </offer>
+    <offer sku="182549">
+      <model>Женские наручные часы George Kini Elegance GK.EL0011</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>98949</price>
+    </offer>
+    <offer sku="182550">
+      <model>Женские наручные часы George Kini Elegance GK.EL0012</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>103999</price>
+    </offer>
+    <offer sku="182573">
+      <model>Женские наручные часы George Kini Citylife GK.CL0003</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>91099</price>
+    </offer>
+    <offer sku="182577">
+      <model>Женские наручные часы George Kini Passion GK.PC0002</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>84856</price>
+    </offer>
+    <offer sku="182578">
+      <model>Женские наручные часы George Kini Passion GK.PC0001</model>
+      <brand>GEORGE KINI</brand>
+      <availabilities>
+        <availability available="no" storeId="PP1"/>
+      </availabilities>
+      <price>84856</price>
+    </offer>
+  </offers>
+</kaspi_catalog>

@@ -1,0 +1,617 @@
+<?php require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_before.php');?>
+<?
+global $DB;
+global $USER;
+set_time_limit(0);
+require_once '/var/www/bitrix/data/www/tempusshop.ru/bitrix/php_interface/include/classes/phpexcel_1.8/PHPExcel.php';
+//$arGroups = $USER->GetUserGroupArray();
+//if($USER->isAdmin() || in_array(6, $arGroups)) $arResult["ACCESS"] = true;
+if(!CModule::IncludeModule('panel_manager'))return;
+
+use \Bitrix\Main\Data\Cache;
+?>
+<div class="row">
+<?
+//if(!$arResult["ACCESS"]) return;
+//$fileData = "/home/bitrix/logs/ms/tempPurchase/" . $USER->getID() . ".txt";
+
+
+$start = debug_microtime_float();
+
+$arResult = array();
+
+$arResult["DATE_TO"] = $_POST["date_to"] ;
+if (empty($arResult["DATE_TO"])) {
+	$arResult["ERROR"][] = 'Выбреите дату начала отсчета';
+} else {
+	$arResult["DATETIME_TO"].= ' 00:00:00';
+}
+$site_id = 's1';
+
+$agent = 'dd5b00b5-2a6e-11ec-0a80-019e000baf07';
+$organization = '27af8b5c-58d1-11ec-0a80-08e7000a6716';
+?>
+
+<?if(!$arResult["ERROR"]):
+	$arSklad = array();
+	$strSql = "SELECT * FROM ci_nk_reports WHERE STR_TO_DATE(date, '%d.%m.%Y') < STR_TO_DATE('".$arResult['DATE_TO']."', '%d.%m.%Y') ORDER BY date ASC";
+	$results = $DB->Query($strSql, false, $err_mess.__LINE__);
+	while ($row = $results->Fetch()){
+		//$arReports[] = $row;
+		// $date = explode(' ',$row['datetime']);
+		$arDataResult[$row['date']]['REPORT'][] = $row;
+	}
+
+	if (isset($_POST['wh']) && $_POST['wh'] != 'ns'){
+		$strSql = "SELECT * FROM ci_nakladnie WHERE STR_TO_DATE(date, '%d.%m.%Y') <= STR_TO_DATE('".$arResult['DATE_TO']."', '%d.%m.%Y') AND wh = '".$_POST['wh']."' ORDER BY date ASC";
+ 	} else {
+		$strSql = "SELECT * FROM ci_nakladnie WHERE STR_TO_DATE(date, '%d.%m.%Y') <= STR_TO_DATE('".$arResult['DATE_TO']."', '%d.%m.%Y') ORDER BY date ASC";
+	}
+	$results = $DB->Query($strSql, false, $err_mess.__LINE__);
+	while ($row = $results->Fetch()){
+		// $arNakladnie[] = [
+		// 	'id' => $row['id'],
+		// 	'name' => $row['name'],
+		// 	'date' => $row['date'].' 00:00:00',
+		// ];
+		$date = $row['date'].' 00:00:00';
+		$arDataResult[$date]['SKLAD_UPDATE'] = [
+			'id' => $row['id'],
+			'name' => $row['name'],
+			'date' => $date,
+		];
+	}
+
+	if (!empty($arDataResult)) {
+		uksort($arDataResult, function($a, $b) {
+		    return strtotime($a) - strtotime($b);
+		});
+	} else { ?>
+		<div class="col-sm-12" style="background-color: rgba(223, 5, 5, 0.1);
+  border-radius: 20px;
+  margin-top: 15px;
+  height: 40px;
+  display: flex;">
+				<div class="row header_table">
+						<div class="title_header_table">
+							<span>Отсутствуют данные на установленную дату.</span>
+						</div>
+				</div>
+		</div>
+		<?
+		return;
+	}
+
+
+
+	$datetimestart = $arResult["DATETIME_TO"];
+	$freeMove = array();
+	$tmpSellCycle = array();
+	$summAll0 = 0;
+	?>
+	<div style="margin-top: 40px;
+	  margin-bottom: 20px;
+	  margin-left: 10px;
+	  font-size: 18px;">Сумма продаж по всем отчетам: <span style="font-weight:600;" id="top-ready"></span></div><?
+	foreach($arDataResult as $key => $ar):?>
+		<?if (isset($ar['REPORT'])){?>
+			<?
+			foreach ($ar['REPORT'] as $key => $report) {
+				$curAr = array();
+				$fullcurArr = array();
+				$curArPrint['Продажа'] = array();
+				$curArPrint['Возврат'] = array();
+				$curArPrint['CHRONOS'] = array();
+				$strSql = "SELECT * FROM ci_nk_reports_position WHERE nk_id = '{$report["id"]}'";
+				$results = $DB->Query($strSql, false, $err_mess.__LINE__);
+				while ($row = $results->Fetch()){
+					if ($row['model'] != '') {
+						$fullcurArr[] = ['model' => $row['model'],'type'=> $row['type'],'price'=>$row['price'],'quantity'=>$row['quantity']];
+						if (isset($curAr[$row['type']][$row['model']])) {
+							$setUpPrice = ($curAr[$row['type']][$row['model']]['price'] > $row['price']) ? $curAr[$row['type']][$row['model']]['price'] : $row['price'];
+							$curAr[$row['type']][$row['model']] = ['quantity' => $curAr[$row['type']][$row['model']]['quantity'] + $row['quantity'],'price' => $setUpPrice];
+						} else {
+							$curAr[$row['type']][$row['model']] = ['quantity' => $row['quantity'],'price' => $row['price']];
+						}
+					}
+				}
+				//проверка
+				// foreach ($curAr['Возврат'] as $model => $v) {
+				// 	if (isset($curAr['Продажа'][$model])) {
+				// 		if ($v['price'] == $curAr['Продажа'][$model]['price']) {
+				// 			if (intval($curAr['Продажа'][$model]['quantity']) == intval($v['quantity'])) {
+				// 				unset($curAr['Возврат'][$model]);
+				// 				unset($curAr['Продажа'][$model]);
+				// 			} else if (intval($curAr['Продажа'][$model]['quantity']) - intval($v['quantity']) < 0){
+				// 				$curAr['Возврат'][$model]['quantity'] = intval($v['quantity']) - intval($curAr['Продажа'][$model]['quantity']);
+				// 				unset($curAr['Продажа'][$model]);
+				// 			} else {
+				// 				$curAr['Продажа'][$model]['quantity'] = intval($curAr['Продажа'][$model]['quantity']) - intval($v['quantity']);
+				// 				unset($curAr['Возврат'][$model]);
+				// 			}
+				// 		}
+				// 	}
+				// }
+				//file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/ajax/nakladnie/test.txt", print_r($curAr, true).PHP_EOL, FILE_APPEND);
+				if (count($arSklad)>0) {
+					foreach ($curAr['Продажа'] as $model => $v) {
+						//print_r($arSklad);
+						if (isset($arSklad[$model])) {
+							$tnpQuant = $v['quantity'];
+
+							foreach ($arSklad[$model] as $gtd => $value) {
+
+								if ($arSklad[$model][$gtd]['quantity'] != 0 and $tnpQuant > 0) {
+
+									 $tmpQ = $arSklad[$model][$gtd]['quantity'] - $tnpQuant;
+									 // print_r($arSklad[$model][$gtd]['name']. ' - ' . $gtd);
+									 // print_r('<br>');
+									 // print_r($arSklad[$model][$gtd]['quantity'].' - '.$tnpQuant );
+									 // print_r('<br>');
+									 // print_r($tmpQ);
+									 // print_r('<br>');
+
+									 if ($tmpQ >= 0) {
+										$curArPrint['Продажа'][$model][$gtd] = ['name'=>$arSklad[$model][$gtd]['name'],'q' => $tnpQuant,'price' => $v['price'], 'sum' => $v['price'] * $tnpQuant,'country' => $arSklad[$model][$gtd]['country'],'гтд' => $gtd];
+										$arSklad[$model][$gtd]['quantity'] = $tmpQ;
+
+										if (isset($tmpSellCycle[$model][$gtd])) {
+											$tmpSellCycle[$model][$gtd] = $tmpSellCycle[$model][$gtd] + $tmpQ;
+										} else {
+											$tmpSellCycle[$model][$gtd] = $tmpQ;
+										}
+										//print_r($v['price'] * $tnpQuant);
+										//print_r('<br>');
+
+										$tnpQuant = 0;
+
+									} else {
+										$qEdit = $tnpQuant - (0 - $tmpQ);
+
+										if (isset($tmpSellCycle[$model][$gtd])) {
+											$tmpSellCycle[$model][$gtd] = $tmpSellCycle[$model][$gtd] + $qEdit;
+										} else {
+											$tmpSellCycle[$model][$gtd] = $qEdit;
+										}
+
+										$curArPrint['Продажа'][$model][$gtd] = ['name'=>$arSklad[$model][$gtd]['name'],'q' => $qEdit, 'price' => $v['price'], 'sum' => $v['price'] * $qEdit ,'country' => $arSklad[$model][$gtd]['country'],'гтд' => $gtd];
+										$arSklad[$model][$gtd]['quantity'] = 0;
+										//print_r($v['price'] * $qEdit);
+										//print_r('<br>');
+										$tnpQuant = $tnpQuant-$qEdit;
+									}
+									//print_r('####################');
+									//print_r('<br>');
+									if (isset($freeMove[$model])) {
+										$freeMove[$model] = intval($freeMove[$model]) + $tnpQuant;
+									} else {
+										$freeMove[$model] = $tnpQuant;
+									}
+								}
+							}
+						}
+					}
+				}
+				// foreach ($curAr['Возврат'] as $model => $v) {
+				// 	if (!isset($curAr['Продажа'][$model]) and isset($freeMove[$model])) {
+				// 		$curAr['CHRONOS'][$model] = $v;
+				// 		$curArPrint['CHRONOS'][$model] = $v;
+				// 		$tmpFreeQ = $freeMove[$model] - $v['quantity'];
+				// 		if ($tmpFreeQ > 0) {
+				// 			$freeMove[$model] = $tmpFreeQ;
+				// 		} else {
+				// 			$freeMove[$model] = 0;
+				// 			$curAr['CHRONOS'][$model]['quantity'] = 0 - $tmpFreeQ;
+				// 		}
+				//
+				// 	}
+				// }
+				// //print_r($curArPrint);
+				// foreach ($curAr['Возврат'] as $model => $v) {
+				// 	if (isset($arSklad[$model])) {
+				//
+				// 		$tnpQuant = $v['quantity'];
+				// 		foreach ($arSklad[$model] as $gtd => $value) {
+				//
+				// 			if (isset($tmpSellCycle[$model][$gtd]) and $tnpQuant > 0) {
+				// 				$realQuant = $tmpSellCycle[$model][$gtd] - $tnpQuant;
+				// 				if ($realQuant >= 0) {
+				// 					$rq = $tnpQuant;
+				// 					$tmpSellCycle[$model][$gtd] = $rq;
+				// 				} else {
+				// 					$rq = $tnpQuant - (0 - $realQuant);
+				// 					$tmpSellCycle[$model][$gtd] = 0;
+				// 					$tnpQuant = 0;
+				// 				}
+				// 				$arSklad[$model][$gtd]['quantity'] = $arSklad[$model][$gtd]['quantity'] + $rq;
+				// 				$curArPrint['Возврат'][$model][$gtd] = ['gtd' => $gtd,'q' => $rq];
+				// 			}
+				//
+				// 		}
+				// 	}
+				// }
+			?>
+			<?//print_r($fullcurArr);?>
+
+			<?$objPHPExcel = new PHPExcel();
+			$objPHPExcel->setActiveSheetIndex(0);
+			$sheet = $objPHPExcel->getActiveSheet();
+			$title = 'Отчет от '.$report['date'].'';
+			$sheet->setTitle($title);
+			$sheet->getColumnDimension("A")->setWidth(20);
+			$sheet->getColumnDimension("B")->setWidth(20);
+			$sheet->getColumnDimension("C")->setWidth(20);
+			$sheet->getColumnDimension("D")->setWidth(20);
+			$sheet->setCellValue("A1", "Модель");
+			$sheet->getStyle("A1")->getFont()->setBold(true);
+			$sheet->setCellValue("B1", "Тип операции");
+			$sheet->getStyle("B1")->getFont()->setBold(true);
+			$sheet->setCellValue("C1", "Цена");
+			$sheet->getStyle("C1")->getFont()->setBold(true);
+			$sheet->setCellValue("D1", "Кол-во");
+			$sheet->getStyle("D1")->getFont()->setBold(true);
+			$row = 2;
+			foreach ($fullcurArr as $type => $modelArr) {
+				$column = 0;
+				foreach($modelArr as $model => $v){
+							$objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($column, $row, $v);
+							$column++;
+				}
+				$row++;
+			}
+			$objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+			$name = $report['date'] .'-'.rand();
+			$objWriter->save('/var/www/bitrix/data/www/tempusshop.ru/upload/nakladnie_cache/'.$name.'.xlsx');
+			$summAll = 0;
+					?>
+
+			<div class="col-sm-12" style="background-color: rgba(40, 96, 144, 0.1); border-radius: 20px;margin-top: 15px;">
+	        <div class="row header_table">
+	            <div class="title_header_table">
+								<a style="font-size:10px;" href="/upload/nakladnie_cache/<?=$name?>.xlsx" target="_blank">(Полный отчет)</a>
+	              <span>Отчет коммисионера от <?=$report['date']?> <?if ($report['type'] == 'wb') {echo ' (WB) ';} else if ($report['type'] == 'oz') {echo ' (OZON) ';}?></span>
+	            </div>
+	            <div class="arrow-4">
+	                <span class="arrow-4-left"></span>
+	                <span class="arrow-4-right"></span>
+	            </div>
+							<?//print_r($curArPrint['Возврат']);
+
+							//create excel'гтд' => $gtd
+								$objPHPExcel = new PHPExcel();
+								$objPHPExcel->setActiveSheetIndex(0);
+								$sheet = $objPHPExcel->getActiveSheet();
+								$title = 'Отчет от '.$report['date'].'';
+								$sheet->setTitle($title);
+								$sheet->getColumnDimension("A")->setWidth(20);
+								$sheet->getColumnDimension("B")->setWidth(10);
+								$sheet->getColumnDimension("C")->setWidth(10);
+								$sheet->getColumnDimension("D")->setWidth(10);
+								$sheet->getColumnDimension("F")->setWidth(32);
+								$sheet->setCellValue("A1", "Продажи");
+								$sheet->getStyle("A1")->getFont()->setSize(18)->setBold(true);
+								$sheet->setCellValue("A2", "Модель");
+								$sheet->getStyle("A2")->getFont()->setBold(true);
+								$sheet->setCellValue("B2", "Кол-во");
+								$sheet->getStyle("B2")->getFont()->setBold(true);
+								$sheet->setCellValue("C2", "Цена/шт");
+								$sheet->getStyle("C2")->getFont()->setBold(true);
+								$sheet->setCellValue("D2", "Сумма");
+								$sheet->getStyle("D2")->getFont()->setBold(true);
+								$sheet->setCellValue("E2", "Страна");
+								$sheet->getStyle("D2")->getFont()->setBold(true);
+								$sheet->setCellValue("F2", "ГТД");
+								$sheet->getStyle("F2")->getFont()->setBold(true);
+
+
+
+								// $sheet->getColumnDimension("H")->setWidth(20);
+								// $sheet->getColumnDimension("I")->setWidth(10);
+								// $sheet->getColumnDimension("J")->setWidth(10);
+								// $sheet->setCellValue("H1", "Возвраты");
+								// $sheet->getStyle("H1")->getFont()->setSize(18)->setBold(true);
+								// $sheet->setCellValue("H2", "Модель");
+								// $sheet->getStyle("H2")->getFont()->setBold(true);
+								// $sheet->setCellValue("I2", "ГТД");
+								// $sheet->getStyle("I2")->getFont()->setBold(true);
+								// $sheet->setCellValue("J2", "Кол-во");
+								// $sheet->getStyle("J2")->getFont()->setBold(true);
+
+								// $sheet->getColumnDimension("L")->setWidth(20);
+								// $sheet->getColumnDimension("M")->setWidth(10);
+								// $sheet->getColumnDimension("N")->setWidth(10);
+								// $sheet->setCellValue("L1", "Вернуть Хроносу");
+								// $sheet->getStyle("L1")->getFont()->setSize(18)->setBold(true);
+								// $sheet->setCellValue("L2", "Модель");
+								// $sheet->getStyle("L2")->getFont()->setBold(true);
+								// $sheet->setCellValue("M2", "Кол-во");
+								// $sheet->getStyle("M2")->getFont()->setBold(true);
+
+								foreach ($curArPrint as $type => $modelArr) {
+									if ($type == 'Продажа') {
+										$row = 3;
+											if (count($modelArr) > 0) {
+												foreach($modelArr as $model => $v2){
+														foreach($v2 as $gtd => $v) {
+												    $column = 0;
+													    foreach ($v as $dataValue) {
+													        $objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($column, $row, $dataValue);
+													        $column++;
+													    }
+															$row++;
+														}
+
+												}
+											} else {
+												$objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow(0,3, 'Склад пуст на момент отчета');
+												$sheet->getStyle("A3")->getFont()->getColor()->setRGB('ff0000');
+											}
+									}
+									//else if ($type == 'CHRONOS'){
+									// 	$row = 3;
+									// 		if (count($modelArr) > 0) {
+									// 			foreach($modelArr as $model => $v){
+									// 					$column = 12;
+									// 					$objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($column-1, $row, $model);
+									// 					$objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($column, $row, $v['quantity']);
+									// 					$row++;
+									// 			}
+									// 		} else {
+									// 			$objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow(11,3,' Возврат хроносу в отчете отсутствуют');
+									// 			$sheet->getStyle("L3")->getFont()->getColor()->setRGB('ff0000');
+									// 		}
+									//
+									// }
+
+									foreach ($modelArr as $model => $values) {
+										foreach($values as $gtd => $v):
+											$summAll0 = $summAll0 + floatval($v['sum']);
+										endforeach;
+									}
+									foreach ($modelArr as $model => $values) {
+										foreach($values as $gtd => $v):
+											$summAll = $summAll + floatval($v['sum']);
+										endforeach;
+									}
+								}
+								$objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+								$name = $report['date'] .'-'.rand();
+								$objWriter->save('/var/www/bitrix/data/www/tempusshop.ru/upload/nakladnie_cache/'.$name.'.xlsx');
+							?>
+							<div>
+								<a href="/upload/nakladnie_cache/<?=$name?>.xlsx" target="_blank">Скачать excel</a>
+								<span style="font-size: 14px; font-weight: normal;">(<b>Сумма прожаж:</b> <?=number_format(round($summAll,2), 1, '.', ' ');?>)</span>
+								<?unset($summAll);?>
+							</div>
+							<div class="close" data-type="report" data-del="<?=$report['id']?>"></div>
+	        </div>
+				<div class="row table">
+					<?foreach ($curArPrint as $type => $modelArr) {?>
+						<?if ($type == 'Продажа') {?>
+
+							<div class="col-sm-6">
+								<h3>Продажа</h3>
+								<?if (count($modelArr) <= 0) {?>
+									<span style='color:red'>Склад пуст на момент отчета</span>
+								<?}else {?>
+								<table class="">
+								<thead>
+									<tr>
+										<th style="width: 15%">Модель</span></th>
+										<th style="width: 10%">Кол-во</th>
+										<th style="width: 20%">ГТД</th>
+										<th style="width: 15%">Страна</th>
+										<th style="width: 15%">Цена за шт.</th>
+										<th style="width: 15%">Сумма</th>
+									</tr>
+								</thead>
+								<tbody>
+								<?foreach ($modelArr as $model => $values) {?>
+
+									<?foreach($values as $gtd => $v):?>
+										<tr class="">
+											<td><?=$v['name']?></td>
+											<td><?=$v['q']?></td>
+											<td><?=$gtd?></td>
+											<td><?=$v['country']?></td>
+											<td><?=$v['price']?></td>
+											<td><?=$v['sum']?></td>
+										</tr>
+									<?endforeach?>
+
+									<?}?>
+								<?}?>
+								</tbody>
+								</table>
+							</div>
+						<?}?>
+					<?}?>
+					<?	?>
+				</div>
+			</div>
+			<?}?>
+		<?}?>
+		<?if (isset($ar['SKLAD_UPDATE'])){?>
+			<?$curAr = array();
+			 $arDifTmp =  array();
+			 $arDifPrint =  array();
+			 ?>
+			<?
+				$strSql = "SELECT * FROM ci_nakladnie_pos WHERE naklad_id = '{$ar['SKLAD_UPDATE']['id']}'";
+				$results = $DB->Query($strSql, false, $err_mess.__LINE__);
+				while ($row = $results->Fetch()){
+					//$cuArTmp[$row['model']][$row['gtd']] = ['name'=>$row['name'],'quantity'=>$row['quantity'],'country' => $row['country']];
+					if (isset($arSklad[$row['model']][$row['gtd']])) {
+							$arSklad[$row['model']][$row['gtd']]['quantity'] = intval($arSklad[$row['model']][$row['gtd']]['quantity']) + intval($row['quantity']);
+							$arDifTmp[$row['model']][$row['gtd']][] = $row['quantity'];
+							$arDifPrint[$row['model']][$row['gtd']][] = ['name'=> $row['name'],'q' => $row['quantity']];
+					} else {
+						 $arSklad[$row['model']][$row['gtd']]['quantity'] = $row['quantity'];
+						 $arSklad[$row['model']][$row['gtd']]['name'] = $row['name'];
+						 $arSklad[$row['model']][$row['gtd']]['country'] = $row['country'];
+						 $arDifTmp[$row['model']][$row['gtd']][] = $row['quantity'];
+						 $arDifPrint[$row['model']][$row['gtd']][] = ['name'=> $row['name'],'q' => $row['quantity']];
+					}
+				}
+				$objPHPExcel = new PHPExcel();
+				$objPHPExcel->setActiveSheetIndex(0);
+				$sheet = $objPHPExcel->getActiveSheet();
+				$dateN = explode(' ',$ar['SKLAD_UPDATE']['date']);
+				$title = 'Пополнение склада из наклодной'.$date[0].'';
+				$sheet->setTitle($title);
+				$sheet->getColumnDimension("A")->setWidth(20);
+				$sheet->getColumnDimension("B")->setWidth(20);
+				$sheet->getColumnDimension("C")->setWidth(10);
+				$sheet->setCellValue("A1", "Пополнение");
+				$sheet->getStyle("A1")->getFont()->setSize(18)->setBold(true);
+				$sheet->setCellValue("A2", "Модель");
+				$sheet->getStyle("A2")->getFont()->setBold(true);
+				$sheet->setCellValue("B2", "ГТД");
+				$sheet->getStyle("B2")->getFont()->setBold(true);
+				$sheet->setCellValue("C2", "Кол-во");
+				$sheet->getStyle("C2")->getFont()->setBold(true);
+
+				$row = 3;
+				foreach ($arDifPrint as $model => $gtdS) {
+
+						if (count($gtdS) > 0) {
+							$column = 0;
+							foreach($gtdS as $gtd => $skld){
+								foreach($skld as $mnm){
+									if ($mnm['q'] != 0) {
+										$objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($column, $row, $mnm['name']);
+										$objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($column+1, $row, $gtd);
+										$objPHPExcel->getActiveSheet()->setCellValueByColumnAndRow($column+2, $row, $mnm['q']);
+										$row++;
+									}
+								}
+							}
+						}
+				}
+				$objWriter = PHPExcel_IOFactory::createWriter($objPHPExcel, 'Excel2007');
+				$name = $dateN[0] .'-'.rand();
+				$objWriter->save('/var/www/bitrix/data/www/tempusshop.ru/upload/nakladnie_cache/'.$name.'.xlsx');
+				// foreach ($cuArTmp as $model => $value) {
+				// 	$q = 0;
+				// 	foreach ($value as $k=>$v) {
+				// 		$name = $v['name'];
+				// 		$q = $q + $v['quantity'];
+				// 	}
+				// 	$curAr[$model] = ['name' => $name,'quantity' => $q];
+				// }
+
+			?>
+			<div class="col-sm-12" style="background-color: rgba(134, 245, 0, 0.3); border-radius: 20px;margin-top: 15px;">
+        <div class="row header_table">
+            <div class="title_header_table">
+              <span>Пополнение склада из наклодной "<?=$ar['SKLAD_UPDATE']['name']?>"</span>
+            </div>
+            <div class="arrow-4">
+                <span class="arrow-4-left"></span>
+                <span class="arrow-4-right"></span>
+            </div>
+						<div>
+							<a href="/upload/nakladnie_cache/<?=$name?>.xlsx" target="_blank">Скачать excel</a>
+						</div>
+						<div class="close" data-type="nakl" data-del="<?=$ar['SKLAD_UPDATE']['id']?>"></div>
+        </div>
+				<?//print_r($ar['SKLAD_UPDATE']);?>
+				<div class="table">
+				<h4>Текущее состояние склада</h3>
+				<table class="">
+					<thead>
+						<tr>
+							<th style="width: 15%">Модель</span></th>
+							<th style="width: 15%">ГТД</span></th>
+							<th style="width: 15%">Страна</span></th>
+							<th style="width: 15%">Кол-во</th>
+							<th style="width: 15%">Изм.</th>
+						</tr>
+					</thead>
+					<tbody>
+						<?foreach($arSklad as $model => $q):?>
+							<?foreach($q as $gtd => $vls):?>
+							<?if (isset($arDifTmp[$model][$gtd]) && count($arDifTmp[$model][$gtd]) > 0){?>
+								<?foreach($arDifTmp[$model][$gtd] as $ddn):?>
+								<tr class="">
+									<td><?=$vls['name']?></td>
+									<td><?if ($gtd == '') { echo "отсутствует"; } else { print_r($gtd); }?></td>
+									<td><?if ($vls['country'] == '') { echo "отсутствует"; } else { print_r($vls['country']); }?></td>
+									<td><?=$vls['quantity']?></td>
+									<td>+ <?=$ddn?></td>
+								</tr>
+								<?endforeach?>
+							<?}?>
+							<?endforeach?>
+						<?endforeach?>
+					</tbody>
+				</table>
+				</div>
+			</div>
+		<?}?>
+		<?
+
+?>
+	<?endforeach?>
+<?endif;?>
+<span class="itogo"><?=number_format(round($summAll0,2), 1, '.', ' ');?></span>
+<?//print_r($arSklad);?>
+<?//file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/ajax/nakladnie/sl.txt", print_r($tmpSellCycle, true).PHP_EOL, FILE_APPEND);?>
+</div>
+<script>
+$(document).ready(function(){
+	var spanValue = $('span.itogo').text();
+	$('#top-ready').text(spanValue);
+    $('[data-toggle="tooltip"]').tooltip();
+		$(".close").on("click", function() {
+			 if (confirm("Вы действительно хотите удалить?")) {
+				 	 var type = $(this).attr("data-type");
+					 var dataDelValue = $(this).attr("data-del");
+					 $.ajax({
+							 url: "/admin/ajax/nakladnie/delete_item.php",
+							 method: "POST",
+							 data: { delValue: dataDelValue, type:type},
+							 success: function(response) {
+								 if (confirm("Успешно удалено.")) {
+										  var dataString = $('#date_to_report').val();
+											$('#popup-stocks').addClass('active-pp');
+											$.ajax({
+												type: "POST",
+												data: {date_to:dataString},
+												url: "/admin/ajax/nakladnie/get_list.php",
+												cache: false,
+												crossDomain: true,
+												xhrFields: {
+													withCredentials: true
+												},
+												success: function(data) {
+													$("#result-purchase").html(data);
+													$('#popup-stocks').removeClass('active-pp');
+												},
+												error:function(data) {
+													alert("Не удалось получить данные");
+													$('#popup-stocks').removeClass('active-pp');
+												}
+											});
+									}
+							 },
+							 error: function(xhr, status, error) {
+									 console.error(status, error);
+							 }
+					 });
+			 }
+	 });
+});
+</script>
+<style>
+	.close {
+	  width: 1em;
+	  height: 1em;
+	  background-color: red;
+	  clip-path: polygon(20% 0%, 0% 20%, 30% 50%, 0% 80%, 20% 100%, 50% 70%, 80% 100%, 100% 80%, 70% 50%, 100% 20%, 80% 0%, 50% 30%);
+		position: absolute;
+  	right: 20px;
+	}
+</style>
+<?
+require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/epilog_after.php');

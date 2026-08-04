@@ -1,0 +1,21 @@
+.log-item{}
+.log-item.warning a{color: red;}
+.filter-price{
+font-size: 15px;
+    line-height: 13px;
+    margin: 0 0 3px 0;
+	cursor: pointer;
+}
+
+.filter-price.active{
+	font-weight: bold;
+}
+
+.filter-price span{
+
+}
+.wrap-settings .list {
+    float: left;
+    width: 100%;
+    margin: 4px 0 4px 0;
+}

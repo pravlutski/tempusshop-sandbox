@@ -1,0 +1,27 @@
+.ajax_load .top_wrapper{margin-right: 1px;}
+.ajax_load .top_wrapper .catalog_block .catalog_item > div{padding-left: 25px;padding-right: 25px;}
+.ajax_load .top_wrapper .catalog_item .footer_button{margin-left:-25px;margin-right: -25px;}
+
+.top_wrapper .catalog_item .icons-basket-wrapper .btn.read_more .svg{/*top:-1px;*/}
+
+.catalog_block_template .catalog_block.owl-carousel .owl-stage-outer{margin: 0px -1px 0px 0px;padding: 0px 1px 0px 0px;}
+/*.catalog_block_template .catalog_block.owl-carousel .owl-stage-outer:before,
+.catalog_block_template .catalog_block.owl-carousel .owl-stage-outer:after{content: "";display: block;position: absolute;top:0px;bottom: 0px;background: #fff;z-index: 3;width: 25px;}
+.catalog_block_template .catalog_block.owl-carousel .owl-stage-outer:before{left: 0px;}
+.catalog_block_template .catalog_block.owl-carousel .owl-stage-outer:after{right: 0px;}*/
+.catalog_block_template .catalog_block.owl-carousel .owl-stage-outer .owl-item:hover{z-index: 2;}
+.catalog_block_template .catalog_block.owl-carousel .catalog_item:hover .inner_wrap{box-shadow: inset 0px 0px 0px 1px #ececec;height: 100%;}
+.ordered-block .catalog_block_template .catalog_block .TYPE_2 .cost.prices .more-item-info > .svg{top:-2px;}
+.catalog_block_template .catalog_block.owl-carousel .catalog_item:hover .inner_wrap.TYPE_2 .footer_button {margin-top:0;}
+
+@media(min-width: 1200px){
+	.wrapper1 .right_block.wide_Y .ajax_load .top_wrapper .col-lg-3:not(.custom-line), .col-lg-5_2.custom-line{width:20%;}
+	.right_block.wide_Y .ajax_load .top_wrapper .col-lg-4:not(.custom-line), #main .catalog_page .section-content-wrapper.with-leftblock .col-lg-3:not(.custom-line), #main .catalog_in_content .section-content-wrapper.with-leftblock .col-lg-3:not(.custom-line){width:25%;}
+
+	#main .right_block.wide_Y.catalog_page .section-content-wrapper.with-leftblock .col-lg-4:not(.custom-line), #main .catalog_in_content .section-content-wrapper.with-leftblock .col-lg-4:not(.custom-line){width:33.33%;}
+}
+
+@media(min-width: 1200px) and (max-width: 1499px){
+	.wrapper1.header-v28 .right_block.wide_Y .ajax_load .top_wrapper .col-lg-3:not(.custom-line){width:25%;}
+	.wrapper1.header-v28 .controls-linecount {display: none;}
+}

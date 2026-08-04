@@ -1,0 +1,38 @@
+.block-create-tags { margin-bottom: 1rem }
+.create-block-tags { padding: 3rem }
+.mb-15 { margin-bottom: 1.5rem }
+.select_w { width: 350px!important }
+.d-flex { display: flex }
+.property-value { margin-left: 2rem }
+.property-input {
+    display: flex;
+    margin-bottom: 1.5rem }
+.delete-property-btn { margin-left: 1rem}
+.property-value .form-control { min-width: 340px }
+.mt-30 { margin-top: 3rem }
+table.tablesorter {
+    font-family:"Trebuchet MS", Tahoma, Verdana, Arial, Helvetica, sans-serif;
+    background-color: #CDCDCD;
+    margin:10px 0 15px;
+    font-size: 8pt;
+    width: 100%;
+    text-align: left }
+table.tablesorter thead tr th, table.tablesorter tfoot tr th {
+    background-color: #ffe800;
+    border: none;
+    font-size: 8pt;
+    padding: 4px 20px 4px 4px }
+table.tablesorter thead tr .header {
+    background-image: url(icon/tablesorter-bg.gif);
+    background-repeat: no-repeat;
+    background-position: center right;
+    cursor: pointer }
+table.tablesorter tbody td {
+    color: #3D3D3D;
+    padding: 4px;
+    background-color: #FFF;
+    vertical-align: top }
+table.tablesorter tbody tr.odd td { background-color: #fffde8 }
+table.tablesorter thead tr .headerSortUp { background-image: url(icon/tablesorter-asc.gif) }
+table.tablesorter thead tr .headerSortDown { background-image: url(icon/tablesorter-desc.gif) }
+table.tablesorter thead tr .headerSortDown, table.tablesorter thead tr .headerSortUp { background-color: #ffc500 }

@@ -1,0 +1,366 @@
+.order-insert-date {}
+.order-insert-date.danger {
+	color: red;
+}
+.order-insert-date.danger-2 {
+	color: red;
+	font-size: 30px;
+}
+hr.seporate-purchase {
+	border: 2px solid black;
+}
+.separate-order td{}
+.inlight {
+	font-size: 30px;
+}
+.img-item{
+	max-width: 100px;
+	max-height: 100px;
+}
+.scan-barcode.error {
+	background-color: #ffebee !important;
+	border-color: #ef9a9a !important;
+	transition: all 0.3s ease;
+}
+p.error {
+	color: red;
+}
+p.success {
+	color: green;
+}
+#scan-barcode-info{
+	margin: 10px 0 0 -15px;
+}
+tr.print_sticker {
+	background: #DEEDCF;
+}
+#group-orders {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	background: white;
+	padding: 15px;
+	border-top: 2px solid #ddd;
+	max-height: 300px;
+	overflow-y: auto;
+	z-index: 1000;
+}
+
+#group-orders table {
+	font-size: 14px;
+}
+
+#group-orders .table th {
+	background: #f5f5f5;
+	position: sticky;
+	top: 0;
+}
+#group-orders {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 10px 15px;
+    border-top: 2px solid #ddd;
+    max-height: 50px;
+    overflow: hidden;
+    z-index: 1000;
+    transition: max-height 0.3s ease;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+}
+
+#group-orders.expanded {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#group-orders-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+#group-orders-title {
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#group-orders-count {
+    background: #4a6fa5;
+    color: white;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+#group-orders-toggle {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: #666;
+    cursor: pointer;
+    padding: 5px;
+    transition: transform 0.3s ease;
+}
+
+#group-orders.expanded #group-orders-toggle {
+    transform: rotate(180deg);
+}
+
+#group-orders-content {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+#group-orders.empty {
+    max-height: 40px;
+}
+
+#group-orders.empty #group-orders-content {
+    display: none;
+}
+.order-details {
+	background: #f9f9f9;
+}
+
+.btn-sm {
+	padding: 0.25rem 0.5rem;
+	font-size: 0.875rem;
+}
+#barcode .get_barcode, #barcode .print_barcode, #barcode .print_barcode_market{
+    display: block;
+    margin: 0 0 3px 0;
+    min-width: 82px;
+}
+#barcode{
+	margin-bottom: 350px;
+}
+.barcode-main {
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.barcode-main.blocked {
+    opacity: 0.5;
+    filter: brightness(0.7) blur(1px);
+    pointer-events: none;
+    user-select: none;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.barcode-main.blocked::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(0, 0, 0, 0.2);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    transform: translate(-50%, -50%);
+    z-index: 100;
+}
+ 
+@keyframes spin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+.tabs {
+    display: flex;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #ccc;
+}
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-bottom: none;
+    margin-right: 5px;
+    border-radius: 5px 5px 0 0;
+}
+.tab.active {
+    background: #fff;
+    border-bottom: 1px solid #fff;
+    margin-bottom: -1px;
+}
+.tab-content {
+    border: 1px solid #ccc;
+    border-top: none;
+    padding: 15px;
+    background: #fff;
+	overflow: auto;
+}
+.tab-pane {
+    display: none;
+}
+.tab-pane.active {
+    display: block;
+}
+.table-FBO1 th:nth-child(3), .table-FBO1 td:nth-child(3), 
+.table-FBO th:nth-child(5), .table-FBO td:nth-child(5){
+	display:none;
+}
+
+#settingsBarcode{
+	float: right;
+}
+/* Стили для модального окна */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 0;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 700px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    animation: modalopen 0.3s;
+}
+
+@keyframes modalopen {
+    from {opacity: 0; transform: translateY(-50px);}
+    to {opacity: 1; transform: translateY(0);}
+}
+
+.modal-header {
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 20px;
+}
+.modal-header .close {
+    margin-top: -2px;
+    position: absolute;
+    right: 10px;
+}
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    border-radius: 0 0 8px 8px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.settings-section {
+    margin-bottom: 25px;
+}
+
+.settings-section h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #2c3e50;
+    font-size: 16px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    margin-right: 10px;
+    width: auto;
+}
+
+.btn-default {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-default:hover {
+    background-color: #5a6268;
+}
+.delete_print_item {
+	cursor: pointer; 
+	font-size: 10px;
+}
+/* Адаптивность модального окна */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer button {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+}
+/* Адаптивность */
+@media (max-width: 768px) {
+    .form-row {
+        flex-direction: column;
+    }
+    
+    .results-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .order-details {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+    }
+}

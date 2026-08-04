@@ -1,0 +1,145 @@
+<?php
+class Metric {
+    private $host = '127.0.0.1';
+    private $port = '3307';
+    private $username = 'adm';
+    private $password = 'QweAsdCode200';
+    private $database = 'metric';
+    private $connection;
+
+    public function __construct() {
+        $this->connect();
+    }
+
+    private function connect() {
+        $this->connection = new mysqli($this->host, $this->username, $this->password, $this->database, $this->port);
+
+        if ($this->connection->connect_error) {
+            die("Connection failed: " . $this->connection->connect_error);
+        }
+    }
+
+    public function OzonFbo($data,$status=NULL,$price=NULL) {
+        $stmt = $this->connection->prepare("INSERT INTO lg_ozon_fbo (model, o_id, o_name, o_code,result,datetime,status,price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssssss",$data['model'], $data['o_id'], $data['name'], $data['code'], $data['result'], date('Y-m-d H:i:s'), $status, $price);
+
+        if ($stmt->execute()) {
+        } else {
+        }
+
+        $stmt->close();
+    }
+
+    public function OzonStock($data,$status=NULL,$price=NULL) {
+        $stmt = $this->connection->prepare("INSERT INTO lg_ozon_stock (model, o_id, o_name, o_code,result,datetime,status,price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssssss",$data['model'], $data['o_id'], $data['name'], $data['code'], $data['result'], date('Y-m-d H:i:s'), $status, $price);
+
+        if ($stmt->execute()) {
+        } else {
+        }
+
+        $stmt->close();
+    }
+
+    public function OzonPrice($data,$status=NULL,$price=NULL) {
+        $stmt = $this->connection->prepare("INSERT INTO lg_ozon_price (model, o_id, o_name, o_code,result,datetime,status,price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssssss",$data['model'], $data['o_id'], $data['name'], $data['code'], $data['result'], date('Y-m-d H:i:s'), $status, $price);
+
+        if ($stmt->execute()) {
+        } else {
+        }
+
+        $stmt->close();
+    }
+
+    public function OzonBase($data) {
+        $stmt = $this->connection->prepare("INSERT INTO lg_ozon_base (operation, datetime) VALUES (?, ?)");
+        $stmt->bind_param("ss",$data['operation'], date('Y-m-d H:i:s'));
+
+        if ($stmt->execute()) {
+            $last_id = $this->connection->insert_id;
+        } else {
+            $last_id = 0;
+        }
+
+        $stmt->close();
+
+        return $last_id;
+    }
+
+    public function Price($data) {
+        //print_r($data);
+        $stmt = $this->connection->prepare("INSERT INTO lg_price (model, price_id, o_name, o_code,result,datetime) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $data['model'], $data['price_id'], $data['name'], $data['code'], $data['result'], date('Y-m-d H:i:s'));
+
+        if ($stmt->execute()) {
+        } else {
+        }
+
+        $stmt->close();
+    }
+
+    public function PriceList($data) {
+        $stmt = $this->connection->prepare("INSERT INTO lg_pricelist (chrono_id, model, o_name, o_code,result,datetime) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt->bind_param("ssssss", $data['chrono_id'], $data['model'], $data['name'], $data['code'], $data['result'], date('Y-m-d H:i:s'));
+
+        if ($stmt->execute()) {
+        } else {
+        }
+
+        $stmt->close();
+    }
+
+    public function PriceListBase($data) {
+        $stmt = $this->connection->prepare("INSERT INTO lg_pricelist_base (supplier_id, datetime) VALUES (?, ?)");
+        $stmt->bind_param("ss", $data['supp_id'],  date('Y-m-d H:i:s'));
+
+        if ($stmt->execute()) {
+            $last_id = $this->connection->insert_id;
+        } else {
+            $last_id = 0;
+        }
+
+        $stmt->close();
+
+        return $last_id;
+    }
+
+    public function getRecordsByModel($model) {
+        $tables = [
+            "lg_ozon_fbo",
+            "lg_ozon_stock",
+            "lg_ozon_price",
+            "lg_price",
+            "lg_pricelist"
+        ];
+
+        $results = [];
+
+      foreach ($tables as $table) {
+            $query = $this->connection->prepare("SELECT * FROM $table WHERE model REGEXP ?");
+            $query->bind_param("s", $model);
+            $query->execute();
+
+            $result = $query->get_result();
+
+            while ($row = $result->fetch_assoc()) {
+                $results[] = $row;
+            }
+
+            $query->close();
+        }
+
+        usort($results, function($a, $b) {
+            return strtotime($b['datetime']) - strtotime($a['datetime']);
+        });
+
+        return $results;
+    }
+
+
+    public function __destruct() {
+        $this->connection->close();
+    }
+}
+?>

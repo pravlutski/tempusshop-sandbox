@@ -1,0 +1,1010 @@
+[
+  {
+    "ID": 218987,
+    "name": "Алматы Атакент",
+    "address": "г.Алматы, ул. Тимирязева 42 павильон 7а",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 204939,
+    "name": "Астана",
+    "address": "Нур-Султан, Шоссе Алаш, 69/1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 324108,
+    "name": "Астана 2",
+    "address": "Караганда, 91/2",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 206236,
+    "name": "Белые Столбы",
+    "address": "Московская область, Домодедово, микрорайон Белые Столбы, владение Склады 104, с 4/1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 301981,
+    "name": "Владимир Воршинское",
+    "address": "Российская Федерация, Владимирская область, муниципальный округ Собинский, территория Вайлдберриз, здание 1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 301983,
+    "name": "Волгоград",
+    "address": "Дзержинский район, городской округ Волгоград",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 301808,
+    "name": "Воронеж",
+    "address": "Отрадненское сельское поселение, Новоусманский район, Воронежская область",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 365116,
+    "name": "Воронеж СГТ",
+    "address": "Воронежская область, м.р-н Новоусманский, с.п. Усманское 1-е, с Нечаевка, ул Виноградная, д. 97а",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 317470,
+    "name": "Голицыно СГТ",
+    "address": "Минское шоссе, 43-й километр, вл1к3",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 1733,
+    "name": "Екатеринбург - Испытателей 14г",
+    "address": "Россия, Свердловская обл, г Екатеринбург, проезд Горнистов 1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 300571,
+    "name": "Екатеринбург - Перспективная 14",
+    "address": "Екатеринбург, Перспективная улица строение 14",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 117986,
+    "name": "Казань",
+    "address": "Казань Республика Татарстан, Зеленодольский район Новая тура 1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 507,
+    "name": "Коледино",
+    "address": "г.Подольск, д. Коледино, ул. Троицкая 20",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50136510,
+    "name": "Коледино: Горючее",
+    "address": "Коледино, ул. Троицкая д. 20",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 301809,
+    "name": "Котовск",
+    "address": "Тамбовская область, муниципальное образование город Котовск, район индустриальный парк Котовск, 3/8",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 130744,
+    "name": "Краснодар (Тихорецкая)",
+    "address": "Краснодарский край, г. Краснодар, ул.Тихорецкая 40с1 ",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 305087,
+    "name": "Кузнецк СГТ",
+    "address": "г. Кузнецк ул. Победы 53",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 208277,
+    "name": "Невинномысск",
+    "address": "г. Невинномысск, ул. Тимирязева 16 ",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50107386,
+    "name": "Нижний Тагил: Индустриальная СГТ",
+    "address": "Свердловская область, г. Нижний Тагил, ул. Индустриальная, д. 30/1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50136836,
+    "name": "Никольское",
+    "address": "Территориальное управление № 2 Администрации Дмитровского городского округа, Дмитровский муниципальный округ, Московская область",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50157355,
+    "name": "Никольское СГТ",
+    "address": "Территориальное управление № 2 Администрации Дмитровского городского округа Дмитровский муниципальный округ, Московская область",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 301805,
+    "name": "Новосемейкино",
+    "address": "Индустриальный парк Новосемейкино, городское поселение Новосемейкино, Красноярский район, Самарская область",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 686,
+    "name": "Новосибирск",
+    "address": "Россия, Новосибирская обл, г Новосибирск, ул Петухова 71",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50086256,
+    "name": "Новосибирск СГТ",
+    "address": "Российская Федерация, Новосибирская область, Новосибирский муниципальный район, сельское поселение Толмачевский сельсовет, платформа 3307 км, дом 30, корпус В1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218210,
+    "name": "Обухово",
+    "address": "Московская область, Богородский городской округ, рабочий поселок Обухово, территория Атлант-Парк, дом 32, строение 5, Склад № 35",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": true
+  },
+  {
+    "ID": 312617,
+    "name": "Обухово СГТ",
+    "address": "Московская область, Богородский городской округ, рабочий поселок Обухово, территория Атлант-Парк, дом 32, строение 5, Склад № 36",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50045809,
+    "name": "Пенза",
+    "address": "Новая ул., 100, посёлок Приовражное",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50138082,
+    "name": "Пенза СГТ",
+    "address": "Пензенская область, Бессоновский район, Бессоновский сельсовет",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 117501,
+    "name": "Подольск",
+    "address": "Подольск Московская область, городской округ Подольск Поливановская улица 9",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218623,
+    "name": "Подольск 3",
+    "address": "Московская область, Подольск, Поливановская улица, 9с3",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 301229,
+    "name": "Подольск 4",
+    "address": "Домодедовское шоссе 22",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 300169,
+    "name": "Радумля СГТ",
+    "address": "деревня Радумля, с4А",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 301760,
+    "name": "Рязань (Тюшевское)",
+    "address": "Индустриальный промышленный парк Рязанский, Тюшевское сельское поселение, Рязанский район",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50154075,
+    "name": "Рязань (Тюшевское): Питание",
+    "address": "Индустриальный промышленный парк Рязанский, Тюшевское сельское поселение",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 300862,
+    "name": "СЦ Абакан 2",
+    "address": "г. Абакан, ул. Складская 11 стр",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 316879,
+    "name": "СЦ Актобе",
+    "address": "г. Актобе, район Астана, Промзона 679/12",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 214951,
+    "name": "СЦ Артем",
+    "address": "Приморский край, г. Артем, ул. Солнечная, д.46",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 302769,
+    "name": "СЦ Архангельск (ул Ленина)",
+    "address": "Архангельск, улица Ленина, 29",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 169872,
+    "name": "СЦ Астрахань",
+    "address": "Астрахань, ул. Рождественского, д.17",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 302988,
+    "name": "СЦ Астрахань (Солянка)",
+    "address": "Николаевское шоссе, 2В, пос. пригородный",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 215020,
+    "name": "СЦ Байсерке",
+    "address": "Алм. Обл с Байсерке Султана Бейбарса 1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 302737,
+    "name": "СЦ Барнаул",
+    "address": "Алтайский край, г. Барнаул, ул. Попова, д. 179Б",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 205228,
+    "name": "СЦ Белая Дача",
+    "address": "Яничкин проезд, 3",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 210557,
+    "name": "СЦ Белогорск",
+    "address": "Амурская область, г. Белогорск, ул. Кирова, д. 306",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 300363,
+    "name": "СЦ Брест",
+    "address": "Брестская область, Брест, Дубровская улица, 36В",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 158751,
+    "name": "СЦ Владикавказ",
+    "address": "РФ, РСО-Алания, Пригородный район, с. Михайловское, Ростовское шоссе, д.17",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 144649,
+    "name": "СЦ Владимир",
+    "address": "ул. Мещерская, 7а",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 210127,
+    "name": "СЦ Внуково",
+    "address": "Москва, поселение Марушкинское, квартал № 8",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 300219,
+    "name": "СЦ Вологда 2",
+    "address": "Вологда, Окружное шоссе 13 корпус 5",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 211415,
+    "name": "СЦ Воронеж",
+    "address": "Воронежская область, Рамонский район,  Айдаровское сельское поселение, территория Промышленная, ул. 1-я Промышленная зона, 9",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 300461,
+    "name": "СЦ Гомель 2",
+    "address": "Гомель, Могилёвская улица 1/А",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 314137,
+    "name": "СЦ Гродно",
+    "address": "г. Гродно, ул. Суворова 298",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 302571,
+    "name": "СЦ Ереван",
+    "address": "Ереван Арташисян 106",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218402,
+    "name": "СЦ Иваново",
+    "address": " Ивановская область, Ивановский район, Коляновское сельское поселение, деревня Игнатово, ул. Окружная, д. 16",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218628,
+    "name": "СЦ Ижевск",
+    "address": "г. Ижевск, Воткинское ш., 302",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 131643,
+    "name": "СЦ Иркутск",
+    "address": "Иркутск, ул. Трактовая, 18/38а",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 117442,
+    "name": "СЦ Калуга",
+    "address": "2-й Академический проезд, 12",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 213849,
+    "name": "СЦ Кемерово",
+    "address": "Кемерово, ул. Тухачевского, 58",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 303219,
+    "name": "СЦ Киров",
+    "address": "г.Киров ул.Павла Корчагина 227А",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 205985,
+    "name": "СЦ Крыловская",
+    "address": "Краснодарский край, Крыловский район, ст. Крыловская, ул. Орджоникидзе, д. 161",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 302335,
+    "name": "СЦ Кузнецк",
+    "address": "Кузнецк, улица Победы, 53,",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 140302,
+    "name": "СЦ Курск",
+    "address": "Курск , ул. 50 лет Октября, зд. 179",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 160030,
+    "name": "СЦ Липецк",
+    "address": "Липецкая область, ул. Орловская, здание 25А.",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 209211,
+    "name": "СЦ Махачкала",
+    "address": "Россия, Республика Дагестан, Махачкала, 2-й проезд Казбекова, 16",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 361670,
+    "name": "СЦ Махачкала Сепараторная",
+    "address": "Сепараторная улица, 1, Махачкала, Республика Дагестан",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 211622,
+    "name": "СЦ Минск",
+    "address": "Беларусь, Минская обл., Минский р-н, Щомыслицкий с/с, 118/2, р-н Антонишки",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 205349,
+    "name": "СЦ Мурманск",
+    "address": "г. Мурманск, ул Промышленная 19",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 204952,
+    "name": "СЦ Набережные Челны",
+    "address": "Набережные Челны,  улица Моторная, здание 16/5 и здание16/6",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 118535,
+    "name": "СЦ Нижний Новгород",
+    "address": "Посёлок Кудьма, логистический комплекс Южный, ул. Индустриальная, 10",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 211470,
+    "name": "СЦ Нижний Тагил",
+    "address": "Свердловская область, г. Нижний Тагил, ул. Индустриальная, д. 30",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 206708,
+    "name": "СЦ Новокузнецк",
+    "address": "Кемеровская область, г. Новокузнецк, Центральный район, просп. Курако, д. 51а, корпус 23.",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 340443,
+    "name": "СЦ Новосибирск Докучаева ",
+    "address": "улица Докучаева, 1/2, Новосибирск",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 161520,
+    "name": "СЦ Новосибирск Пасечная",
+    "address": "Новосибирская область,  Новосибирский район, п. Садовый, ул. Пасечная, дом 11/1, корпус 2 ",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 303221,
+    "name": "СЦ Ноябрьск",
+    "address": "г. Ноябрьск,  3й проезд, панель 9в/2",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 312807,
+    "name": "СЦ Обухово 2",
+    "address": "Московская область, Богородский городской округ, рабочий поселок Обухово, территория Атлант-Парк, дом 32, строение 5, Склад № 36",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 168458,
+    "name": "СЦ Омск",
+    "address": "г. Омск, ул. Раздольная, д 1к3",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 315199,
+    "name": "СЦ Оренбург Центральная",
+    "address": "Оренбург , Центральная улица , 29 ",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 216566,
+    "name": "СЦ Пермь 2",
+    "address": "Пермский край, город Пермь, Промышленная 123а",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 209209,
+    "name": "СЦ Псков",
+    "address": "г. Псков, ул. Индустриальная, д. 9/1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 207743,
+    "name": "СЦ Пушкино",
+    "address": " Пушкино, территория 33-й км автодороги М8 Холмогоры, земельный участок 16б",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 301920,
+    "name": "СЦ Пятигорск (Этока)",
+    "address": "г Пятигорск район Этока Георигиевское шоссе 4 км. 1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218616,
+    "name": "СЦ Ростов-на-Дону",
+    "address": "Ростовская область, улица Гайдара, 8 корпус 2",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 117230,
+    "name": "СЦ Самара",
+    "address": "Самарская область, Волжский район, село Преображенка, ул. Индустриальная, 1Б",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 169537,
+    "name": "СЦ Серов",
+    "address": "Серов, ул. Новоуральская 2а",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 333530,
+    "name": "СЦ Симферополь Молодежненское",
+    "address": "Симферополь, Московское шоссе, 12 км",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 300987,
+    "name": "СЦ Смоленск 3",
+    "address": "Смоленск, Улица Лавочкина, 107",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 318294,
+    "name": "СЦ Софьино",
+    "address": "Логопарк Софьино, контрольно-пропускной пункт № 2 Московская область, Раменский городской округ, территория Логистический технопарк Софьино Корпус 8.",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 161003,
+    "name": "СЦ Сургут",
+    "address": "РФ, Ханты-Мансийский автономный округ- Югра, г. Сургут, ул. Сосновая, д. 29, сооружение 12",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 209208,
+    "name": "СЦ Сыктывкар",
+    "address": "Республика Коми, г.Сыктывкар ул. 1-ая Промышленная д.19",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 117866,
+    "name": "СЦ Тамбов",
+    "address": "ул. Волжская, 71Б",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 117456,
+    "name": "СЦ Тверь",
+    "address": "ул. Волоколамское шоссе, 51Б",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 204615,
+    "name": "СЦ Томск",
+    "address": "РФ, Томская область, г. Томск, ул.  Мичурина, д. 47, стр. 14.",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 117819,
+    "name": "СЦ Тюмень",
+    "address": "ул. Харьковская 77/1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 205104,
+    "name": "СЦ Ульяновск",
+    "address": "Ульяновская область, г. Ульяновск, 14 проезд Инженерный, 9в",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 300711,
+    "name": "СЦ Уральск",
+    "address": "г. Уральск, Район ТЭЦ 10/3",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 149445,
+    "name": "СЦ Уфа",
+    "address": "Мокроусовская улица, 8Г",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218644,
+    "name": "СЦ Хабаровск",
+    "address": "г.Хабаровск, ул. Зеленая д.3А",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218916,
+    "name": "СЦ Чебоксары 2",
+    "address": "г. Чебоксары, проезд Лапсарский,д. 55, строение 1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218225,
+    "name": "СЦ Челябинск 2",
+    "address": "г. Челябинск пр-кт Ленина д. 3",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 311895,
+    "name": "СЦ Череповец",
+    "address": "Вологодская область Город Череповец Кирилловское шоссе 82",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218674,
+    "name": "СЦ Чита 2",
+    "address": "г. Чита, ул. Казачья 29",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 312259,
+    "name": "СЦ Шушары",
+    "address": "Шушары Московское шоссе 143",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 218698,
+    "name": "СЦ Шымкент",
+    "address": "г. Шымкент микрорайон Самал 3 улица А Шеримкулова 5",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50064725,
+    "name": "СЦ Шымкент Асар",
+    "address": "микрорайон Асар-2, 2113, Шымкент",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 338827,
+    "name": "СЦ Ярославль Громова",
+    "address": "Ярославская обл, г. Ярославль. ул. Громова, д. 9В",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 2737,
+    "name": "Санкт-Петербург (Уткина Заводь)",
+    "address": "Россия, Ленинградская обл, Всеволожский р-н, массив Карьер Мяглово, тер Снт Уткина Заводь 4 корп.4, ",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50045612,
+    "name": "Санкт-Петербург СГТ",
+    "address": "территория промышленной зоны Восточная, 1, Лаголовское сельское поселение, Ломоносовский район, Ленинградская область",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 301987,
+    "name": "Сарапул",
+    "address": "Г Сарапул, Ижевский тракт 22",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 332491,
+    "name": "Склад Владивосток",
+    "address": "территория опережающего социально-экономического развития Надеждинская, Надеждинский район, Приморский край",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 387234,
+    "name": "Склад Истра",
+    "address": "Московская область, муниципальный округ Истра, деревня Давыдовское, индустриальный парк Кулон-Истра Дачная улица, с2",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50045246,
+    "name": "Склад Шушары",
+    "address": "Санкт-Петербург, Пушкинский район, поселок Шушары, Московское шоссе, 153к2",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50062129,
+    "name": "Софрино СГТ",
+    "address": "Московская область, городской округ Пушкинский, территория Автодорога М8 Холмогоры, километр 48-й, дом 2, строение 3",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50049050,
+    "name": "Софьино СГТ",
+    "address": "Московская область, Раменский городской округ, территория Логистический технопарк Софьино, 15 корпус 6.1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 217081,
+    "name": "Сц Брянск 2",
+    "address": "Брянская обл, г. Брянск, ул. Сталелитейная, дом 1. ",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 387235,
+    "name": "Ташкент 1",
+    "address": "Ташкент, Сергелийский район, махаллинский сход граждан Дарёбуйи",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 387236,
+    "name": "Ташкент 2",
+    "address": "Ташкент, Сергелийский район, махаллинский сход граждан Дарёбуйи",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 206348,
+    "name": "Тула",
+    "address": "Тульская область, муниципальное образование Алексин, 1",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 321932,
+    "name": "Чашниково",
+    "address": "Территория Индустриальный парк Чашниково, городской округ Солнечногорск, Московская область",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50089332,
+    "name": "Челябинск СГТ",
+    "address": "Челябинск, Копейское Шоссе 88А",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 206968,
+    "name": "Чехов 1, Новоселки вл 11 стр 2",
+    "address": "Чеховский район, село Новоселки, Промышленная зона Новосёлки, вл11с2",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 210001,
+    "name": "Чехов 2, Новоселки вл 11 стр 7",
+    "address": "Московская обл. городской округ Чехов. Промышленная зона Новоселки, вл. 11 с. 7",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 336442,
+    "name": "Щербинка",
+    "address": "Московская область, Подольск, Вишнёвая улица, 11Б",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 120762,
+    "name": "Электросталь",
+    "address": "Московская область, Электросталь, посёлок Случайный, территория Массив 3, 5",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50148010,
+    "name": "Электросталь: Питание",
+    "address": "Московская область, Электросталь, посёлок Случайный, территория Массив 3, 5.",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 50045904,
+    "name": "Юрга",
+    "address": "Кемеровская область — Кузбасс",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  },
+  {
+    "ID": 367641,
+    "name": "Ярославль СГТ",
+    "address": "Ярославская обл, г. Ярославль. ул. Громова, д. 9",
+    "workTime": "24/7",
+    "isActive": true,
+    "isTransitActive": false
+  }
+]

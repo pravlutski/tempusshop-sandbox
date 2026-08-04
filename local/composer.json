@@ -1,0 +1,20 @@
+{
+    "require": {
+        "wikimedia/composer-merge-plugin": "dev-master",
+        "picqer/php-barcode-generator": "^2.2",
+        "phpoffice/phpspreadsheet": "^1.27",
+        "mpdf/mpdf": "^8.1",
+        "tecnickcom/tcpdf": "^6.6",
+        "intervention/image": "^3.11",
+        "php-amqplib/php-amqplib": "^3.7",
+        "sentry/sentry": "^4.14",
+        "iio/libmergepdf": "^3.1",
+        "elasticsearch/elasticsearch": "^8.0"
+    },
+    "config": {
+        "allow-plugins": {
+            "wikimedia/composer-merge-plugin": true,
+            "php-http/discovery": true
+        }
+    }
+}

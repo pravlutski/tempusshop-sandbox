@@ -1,0 +1,3 @@
+<?
+$MESS['NS_CATALOG_MODULE_TITLE'] = "IMPORT 1C";
+?>

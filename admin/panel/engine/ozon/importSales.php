@@ -1,0 +1,2026 @@
+<?php
+$_SERVER["DOCUMENT_ROOT"] = "/var/www/bitrix/data/www/tempusshop.ru";
+$DOCUMENT_ROOT = $_SERVER["DOCUMENT_ROOT"];
+
+define("NO_KEEP_STATISTIC", true);
+define("NOT_CHECK_PERMISSIONS", true);
+
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+set_time_limit(0);
+
+use Bitrix\Main\Application,
+	Bitrix\Main\Loader;
+
+class OzonImportSalesClass{
+	public function __construct($cabinet){
+		if (empty($cabinet) || $cabinet == '') {
+			die('need cabinet_id');
+		}
+		$this->cabinet = $cabinet;
+		global $DB;
+		$this->loadModules();
+		$this->triggers = new TsTriggers();
+		$this->CurDB = new DBPanel();
+		$this->db = $DB;
+
+		$result = $this->CurDB->query("SELECT * FROM ozon_main_settings_{$this->cabinet}");
+		$rows = $this->CurDB->fetchAll($result);
+		foreach ($rows as $row) {
+			$arSetting[$row['name']] = $row['value'];
+		}
+		unset($result);
+		unset($rows);
+
+		$result = $this->CurDB->query("SELECT * FROM ozon_sales_pi_{$this->cabinet} WHERE pi_sets = 'main'");
+	  $rows = $this->CurDB->fetchAll($result);
+	  foreach ($rows as $row) {
+			$this->minprof = $row['min_profit'];
+			$this->unset = $row['unset'];
+			$this->com = $row['com'];
+			$this->tops = json_decode($row['tops']);
+	  }
+
+	  unset($result);
+	  unset($rows);
+
+
+		$result = $this->CurDB->query("SELECT * FROM ozon_sales_info_{$this->cabinet}");
+	  $rows = $this->CurDB->fetchAll($result);
+    foreach ($rows as $row) {
+      $this->curSalePrice[$row['model']][$row['sale_id']] = $row['action_max_price'];
+    }
+
+		unset($result);
+	  unset($rows);
+
+		$strSql = "SELECT * FROM individual_markups WHERE source = 'ozti'";
+		$resultDB = $DB->Query($strSql, false, $err_mess.__LINE__);
+		$this->indivMarkups = [];
+		while ( $row = $resultDB->Fetch() ){
+			$this->indivMarkups[] = $row['model'];
+		}
+
+		if ($this->cabinet == 'TI') {
+			$prefix_old = '_new';
+		} else {
+			$prefix_old = '';
+		}
+
+		$this->salesTop = array();
+		$this->reportTop = array();
+		unset($result);
+		unset($rows);
+
+		$result = $this->CurDB->query("SELECT * FROM ozon_fbo_price_{$this->cabinet}");
+		$rows = $this->CurDB->fetchAll($result);
+		foreach ($rows as $row) {
+			$this->checkFBOPrice[$row['article']] = $row['price'];
+		}
+		unset($result);
+		unset($rows);
+
+		// $strSql = "SELECT * FROM wdhs_ozon_fbo_price".$prefix_old."";
+		// $results = $this->db->Query($strSql, false, $err_mess.__LINE__);
+		// while ($row = $results->Fetch()){
+		//   $this->checkFBOPrice[$row['article']] = $row['price'];
+		// }
+		//$this->checkFBOPrice = array();
+
+		$result = $this->CurDB->query("SELECT * FROM ozon_fbo_sebes_{$this->cabinet}");
+		$rows = $this->CurDB->fetchAll($result);
+		foreach ($rows as $row) {
+			$this->checkFBOSebes[$row['model']] = $row['sebes'];
+		}
+		unset($result);
+		unset($rows);
+
+		// $strSql = "SELECT * FROM wdhs_ozon_fbo_sebes".$prefix_old."";
+		// $results = $this->db->Query($strSql, false, $err_mess.__LINE__);
+		// while ($row = $results->Fetch()){
+		//   $this->checkFBOSebes[$row['model']] = $row['sebes'];
+		// }
+		//$this->checkFBOSebes = array();
+		$strSql = "SELECT * FROM individual_markups WHERE source = 'os'";
+    $results = $this->db->Query($strSql, false, $err_mess.__LINE__);
+    $this->markups = [];
+    while ( $row = $results->Fetch() ){
+      $this->markups[$row['model']] = $row['model'];
+    }
+
+
+    $this->api_url = $arSetting['api_url'];
+    $this->client_id = $arSetting['client_id'];
+    $this->token = $arSetting['key'];
+		$this->info = array();
+	}
+
+	private function loadModules(){
+		Loader::includeModule("main");
+		Loader::includeModule("iblock");
+		Loader::includeModule('panel.manager');
+  }
+
+	public function UpdateTmpTable(){
+		foreach ((array)$_SERVER['argv'] as $v){
+			list($k,$v) = explode("=",$v);
+			if ($k && $v) $request[$k] = $v;
+		}
+
+		$this->date = date('d.m.Y');
+		$this->time = date('H:i:s');
+		$this->arLog = array();
+		$this->info = array();
+		$this->detail = array();
+		$this->deleteArr = array();
+		$this->usesNow = array();
+		$timeStart = date('Y.m.d G:i:s');
+
+
+    //Агент-Инфо
+		$sql = "UPDATE ozon_agents SET status = 'PROCESS', status_text = 'Запуск скрипта', time_start = '{$timeStart}',time_end = NULL ,percent = '0' WHERE code = 'importSales_{$this->cabinet}'";
+		$this->CurDB->query($sql);
+
+
+		file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/ozon/logs/{$this->cabinet}/sales/log_3.txt", print_r('start', true));
+
+		$this->getItems();
+		$this->getSebes();
+
+		//Агент-Инфо
+		$sql = "UPDATE ozon_agents SET status_text = 'Получение товаров и их себестоимостей', percent = '5' WHERE code = 'importSales_{$this->cabinet}'";
+		$this->CurDB->query($sql);
+
+
+		$this->GetActiveSales();
+
+		//Агент-Инфо
+		$sql = "UPDATE ozon_agents SET status_text = 'Получение акций', percent = '10' WHERE code = 'importSales_{$this->cabinet}'";
+		$this->CurDB->query($sql);
+
+		$this->GetAllSalse();
+		//print_r('true');die();
+
+		//Агент-Инфо
+		$sql = "UPDATE ozon_agents SET status_text = 'Получение товаров которые участвуют', percent = '20' WHERE code = 'importSales_{$this->cabinet}'";
+		$this->CurDB->query($sql);
+
+		$this->GetUsesProducts();
+
+		//Агент-Инфо
+		$sql = "UPDATE ozon_agents SET status_text = 'Получение товаров которые могут учавствовать', percent = '30' WHERE code = 'importSales_{$this->cabinet}'";
+		$this->CurDB->query($sql);
+
+		$this->GetPotencialProducts();
+		//print_r('true');die();
+
+		//Агент-Инфо
+		$sql = "UPDATE ozon_agents SET status_text = 'Выполнение расчетов', percent = '50' WHERE code = 'importSales_{$this->cabinet}'";
+		$this->CurDB->query($sql);
+
+		$this->CheckItemsAll();
+
+		//Агент-Инфо
+		$sql = "UPDATE ozon_agents SET status_text = 'Отправляем запросы в OZON', percent = '70' WHERE code = 'importSales_{$this->cabinet}'";
+		$this->CurDB->query($sql);
+
+		$this->DeactivateSales();
+		$this->UsesReplace();
+		$this->ActivateSales();
+
+		$this->DeleteNotActiveSales();
+
+		//Агент-Инфо
+		$sql = "UPDATE ozon_agents SET status_text = 'Обновляем таблицы', percent = '80' WHERE code = 'importSales_{$this->cabinet}'";
+		$this->CurDB->query($sql);
+
+		$this->updateSales();
+		$this->updatePriceTable();
+
+		$triggers = new TsTriggers();
+		$triggers->SetError(["Акции обновлены [". date('d.m.Y H:i:s')."]\n"]);
+		$triggers->SendTriggerErrors();
+		file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/ozon/logs/{$this->cabinet}/sales/detail/{$this->date}.txt", print_r('###', true).PHP_EOL, FILE_APPEND);
+		file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/ozon/logs/{$this->cabinet}/sales/detail/{$this->date}.txt", print_r(json_encode(array($this->time => $this->detail)), true).PHP_EOL, FILE_APPEND);
+
+		file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/ozon/logs/{$this->cabinet}/sales/log.txt", print_r(json_encode($this->arLog), true));
+		file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/ozon/logs/{$this->cabinet}/sales/top.txt", print_r(json_encode($this->reportTop), true));
+
+		print_r('<br>');
+		foreach ($this->salesActive as $key => $sale) {
+			print_r('<b><a target="_blank" href="/admin/panel/ozon/sales/log.php?ID='.$sale['sale_id'].'">Акция</b> - '.$sale['name'].' ('.$sale['sale_id'].')</a><br>');
+			print_r('УЧАСТВУЮЩИЕ - '.count($this->tmpPorductsM[$sale['sale_id']]['USES']).'<br>');
+			print_r('<span color="green">ОТСАВЛЯЕМ ИДЕАЛЬНЫЕ УСЛОВИЯ</span> - '.count($this->arTmpResU[$sale['sale_id']]['GOOD']).'<br>');
+			print_r('<span color="green">ОТСАВЛЯЕМ C УВЕЛИЧЕНИЕМ ЦЕНЫ</span> - '.count($this->arTmpResU[$sale['sale_id']]['REP']).'<br>');
+			print_r('<span color="red">УДАЛЯЕМ<by/span> - '.count($this->arTmpResU[$sale['sale_id']]['BAD']).'<br>');
+			print_r('ПОТЕНЦИАЛЬНЫЕ - '.count($this->tmpPorducts[$sale['sale_id']]['CAN']).'<br> ');
+			print_r('<span color="green">ДОБАВЛЯЕМ</span> - '.count($this->arTmpRes[$sale['sale_id']]['GOOD']).'<br>');
+			print_r('<span color="red">НЕ ДОБОВЛЯЕМ</span> - '.count($this->arTmpRes[$sale['sale_id']]['BAD']).'<br>');
+			print_r('##############################################<br>');
+		}
+
+	}
+
+  public function getItems(){
+		$this->db->Update("wdhs_ozon_upload_status_new", array("status" => "'INCOMPLETE'","percent" => "'0'"), "WHERE agent = 'sale'", $err_mess.__LINE__);
+
+		if ($this->cabinet == 'TI') {
+			$constPrice = 'PRICE_OZTI';
+			$constID = 'OZON_ID_TI';
+			$this->constPriceType = 'ozti';
+		} else if ($this->cabinet == 'IP') {
+			$constPrice = 'OZSB_PRICE';
+			$constID = 'OZON_ID';
+			$this->constPriceType = 'os';
+		} else {
+			die('WRONG CONST');
+		}
+
+    $arSelect = Array("ID","IBLOCK_ID","IBLOCK_SECTION_ID","PROPERTY_OZON_ACTIVE","PROPERTY_CML2_ARTICLE","PROPERTY_".$constPrice."","PROPERTY_WBARTICLE","PROPERTY_TYPEOFSKLAD","PROPERTY_".$constID."","PROPERTY_BRAND");
+    $arFilter = Array(
+      "IBLOCK_ID" => CProSet::IB_CATALOG,
+      //"ID" => 156623,
+			//"SECTION_ID" => 558
+			"=PROPERTY_OZON_ACTIVE_VALUE" => 'Да'
+      //"ID" => 178901
+    );
+		//$arFilter["!ID"] = 14124;
+
+    $result = CIBlockElement::GetList(array(), $arFilter, false, false, $arSelect);
+
+    while ($el = $result->GetNext()){
+			if (empty($el['PROPERTY_WBARTICLE_VALUE']) or $el['PROPERTY_WBARTICLE_VALUE'] == '') {
+					$this->arLog['GET_ITEMS']['ERRORS']['NO_ARTICLE'][] = $el['ID'];
+			}	else if (empty($el['PROPERTY_'.$constPrice.'_VALUE']) or $el['PROPERTY_'.$constPrice.'_VALUE'] == 0) {
+					$this->arLog['GET_ITEMS']['ERRORS']['NO_PRICE'][] = $el['ID'];
+			} else {
+				$arSection = getSectionsElement($el["ID"]);
+
+				if (isset($this->checkFBOPrice[$el["PROPERTY_CML2_ARTICLE_VALUE"]]) && !empty($this->checkFBOPrice[$el["PROPERTY_CML2_ARTICLE_VALUE"]]) ){
+					$price = $this->checkFBOPrice[$el["PROPERTY_CML2_ARTICLE_VALUE"]];
+					$fboStatus = 'да';
+				} else {
+					$price = $el["PROPERTY_".$constPrice."_VALUE"];
+					$fboStatus = 'нет';
+				}
+
+				//$price = $el["PROPERTY_PRICE_OZTI_VALUE"];
+
+
+
+	    	$this->items[$el["PROPERTY_".$constID."_VALUE"]] = [
+	    		"ID" => $el["ID"],
+					"PRICE" => $price,
+					"MODEL" => $el["PROPERTY_CML2_ARTICLE_VALUE"],
+	    		"OZON_ARTICLE" => $el["PROPERTY_WBARTICLE_VALUE"],
+	    		"OZON_ID" => $el["PROPERTY_".$constID."_VALUE"],
+					"BRAND" => trim($el["PROPERTY_BRAND_VALUE"]),
+					"FBO" => $fboStatus
+	    	];
+			}
+    }
+
+
+		$this->db->Update("wdhs_ozon_upload_status_new", array("percent" => '10'), "WHERE agent='sale'", $err_mess.__LINE__);
+
+		file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/ozon/logs/{$this->cabinet}/sales/tmp/arUpdateSale.txt", print_r($this->items, true));
+	}
+
+
+
+
+	public function getSebes(){
+		foreach ($this->items as $key => &$v) {
+			$tmpPrice = array();
+			$strSql = "SELECT price, id, count, model, supplier_id FROM ci_price WHERE model = '".$v['MODEL']."' AND active_".$this->constPriceType." = 'Y' ORDER BY price ASC";
+
+			$results = $this->db->Query($strSql, false, $err_mess.__LINE__);
+
+			while ($row = $results->Fetch()){
+				$tmpPrice[$row['id']] = [
+					'price' =>floatval($row['price']),
+					'model' =>$row['model'],
+					'count' => intval($row['count']),
+					'supplier_id' => $row['supplier_id']
+				];
+			}
+
+			$strSql = "SELECT * FROM ci_reserved WHERE ARTICLE = '".$v['ARTICLE']."'";
+			$resultRes = $this->db->Query($strSql, false, $err_mess.__LINE__);
+			$excludeReserved = [];
+			while ( $row = $resultRes->Fetch() ){
+				$excludeReserved[$row['ARTICLE']] = $row['RESERVED'];
+			}
+
+			$curReserved = null;
+			$suppExcl = [];
+			foreach($tmpPrice as $k => $value){
+				if ( $curReserved != null ){
+					if ( ($curReserved - $value['count'] >= 0) && !in_array($value['supplier_id'], $suppExcl) ){
+						$curReserved = $curReserved - $value['count'];
+						$suppExcl[] = $value['supplier_id'];
+					}else{
+						$minPrice = $value['price'];
+						$price_id = $k;
+						break;
+					}
+				}else{
+					if ( isset($excludeReserved[$value['model']]) && ($excludeReserved[$value['model']] - $value['count'] >= 0) ){
+						$curReserved = $excludeReserved[$value['model']] - $value['count'];
+						$suppExcl[] = $value['supplier_id'];
+					}else{
+						$minPrice = $value['price'];
+						$price_id = $k;
+						break;
+					}
+				}
+			}
+
+			if ( !empty($tmpPrice) && !empty($minPrice) ) {
+				$v['SEBES'] = $minPrice;
+			} else {
+				$v['SEBES'] ='';
+			}
+
+			if (isset($this->checkFBOSebes[$v['MODEL']])) {
+				$v['SEBES'] = $this->checkFBOSebes[$v['MODEL']];
+			}
+		}
+	}
+
+	public function GetActiveSales() {
+		$dateStart = date('d.m.Y');
+		$result = $this->CurDB->query("SELECT * FROM ozon_sales_{$this->cabinet} WHERE STR_TO_DATE(date_start, '%d.%m.%Y') < STR_TO_DATE('".$dateStart."', '%d.%m.%Y')");
+		$rows = $this->CurDB->fetchAll($result);
+		foreach ($rows as $row) {
+			$this->salesActive[$row['sale_id']] = $row;
+			$this->salesActiveNotSort[$row['sale_id']] = $row;
+		}
+
+		if (!empty($this->salesActive)) {
+			foreach ($this->salesActive as $key => $sale) {
+				if (!empty($this->unset) && $this->unset != '') {
+					if (strpos($this->unset, ',') !== false) {
+						$this->salesActive[$key]['brand_unset'] = explode(',',trim($this->unset));
+					} else {
+						$this->salesActive[$key]['brand_unset'][] = trim($this->unset);
+					}
+				} else {
+					$this->salesActive[$key]['brand_unset'] = array();
+				}
+				if (empty($sale['sort']) && $sale['sort'] != '0') {
+					print_r('АКЦИЯ '.$sale['name'].' исключена, не заполнена сортировка!');
+					unset($this->salesActive[$key]);
+				}
+				$this->arTmpRes[$sale['sale_id']]['GOOD'] = array();
+				$this->arTmpRes[$sale['sale_id']]['BAD'] = array();
+				$this->arTmpResU[$sale['sale_id']]['GOOD'] = array();
+				$this->arTmpResU[$sale['sale_id']]['REP'] = array();
+				$this->arTmpResU[$sale['sale_id']]['BAD'] = array();
+				$this->usesNow[$sale['sale_id']] = array();
+			}
+			usort($this->salesActive, function($a, $b) {
+			    return $a['sort'] - $b['sort'];
+			});
+		}
+
+	}
+
+	public function GetAllSalse()	{
+		$this->NotActiveSales = array();
+		$this->AllSale = array();
+		$ch = curl_init($this->api_url . '/v1/actions');
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+		  'Api-Key:' . $this->token,
+		  'Client-Id:' . $this->client_id,
+		  'Content-Type:application/json'
+		));
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+		curl_setopt($ch, CURLOPT_HEADER, false);
+		$res = curl_exec($ch);
+		curl_close($ch);
+
+		$res = json_decode($res, true);
+		foreach ($res['result'] as $k=>$r) {
+			$this->AllSale[] = $r;
+		}
+
+		foreach ($this->AllSale as $key => $value) {
+			if (!isset($this->salesActiveNotSort[$value['id']])) {
+				$this->NotActiveSales[] = $value;
+			}
+		}
+		// print_r($this->AllSale);
+		// die();
+	}
+  //текущие
+	public function GetUsesProducts() {
+		$this->NotActiveProduct = array();
+
+		foreach ($this->salesActive as $key => $value) {
+			$saleID = $value['sale_id'];
+			$i = 0;
+			$check = true;
+			$this->tmpPorductsM[$saleID]['USES'] = array();
+				while ($check == true) {
+					$data_string = json_encode(array(
+						"action_id"=> $saleID, "limit" => 1000,"offset" => $i
+					));
+					$ch = curl_init($this->api_url . '/v1/actions/products');
+						curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+							'Api-Key:' . $this->token,
+							'Client-Id:' . $this->client_id,
+							'Content-Type:application/json'
+						));
+						curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+						curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+						curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+						curl_setopt($ch, CURLOPT_HEADER, false);
+						$res = curl_exec($ch);
+						curl_close($ch);
+
+						$res = json_decode($res, true);
+						if (isset($res['result'])) {
+							if (count($res['result']['products']) < 1000) {
+								$check = false;
+							} else {
+								$check = true;
+							}
+						} else {
+							$check = false;
+
+							echo "ОШИБКА В ОТВЕТЕ API OZON";
+							// $triggers = new TsTriggers();
+							// $triggers->SetError(["ОШИБКА ПРИ ОБНОВЛЕНИИ АКЦИЙ [". date('d.m.Y H:i:s')."]\n"]);
+							// $triggers->SendTriggerErrors();
+							print_r('<br>');
+							print_r($res);
+							print_r('<br>');
+							print_r('<<<<<');
+							print_r('<br>');
+							print_r($value['sale_id']);
+						}
+						// if($saleID == '1419082') {
+						// 	print_r('cccccccccccccccccc');
+						// 	print_r($res['result']);
+						// }
+						foreach ($res['result']['products'] as $key => $value) {
+							if (!isset($this->items[$value['id']])) {
+								$this->NotActiveProduct[$saleID][] = [
+									'product_id' => $value['id'],
+									'need_price' => $value['max_action_price'],
+									'check_price' => $value['action_price'],
+									'arr' => $value,
+								];
+							} else {
+								$this->tmpPorductsM[$saleID]['USES'][$value['id']] = [
+									'product_id' => $value['id'],
+									'need_price' => $value['max_action_price'],
+									'check_price' => $value['action_price'],
+									'arr' => $value,
+								];
+							}
+						}
+						$i=$i+1000;
+					}
+			}
+
+	}
+
+	public function GetPotencialProducts() {
+		foreach ($this->salesActive as $key => $value) {
+			$saleID = $value['sale_id'];
+			$this->tmpPorducts[$saleID]['CAN'] = array();
+			$i = 0;
+			$check = true;
+			while ($check == true) {
+				$data_string = json_encode(array(
+					"action_id"=> $saleID, "limit" => 1000,"offset" => $i
+				));
+				$ch = curl_init($this->api_url . '/v1/actions/candidates');
+					curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+						'Api-Key:' . $this->token,
+						'Client-Id:' . $this->client_id,
+						'Content-Type:application/json'
+					));
+					curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+					curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+					curl_setopt($ch, CURLOPT_HEADER, false);
+					$res = curl_exec($ch);
+					curl_close($ch);
+					// print_r($res);
+					// die();
+					$res = json_decode($res, true);
+					if (isset($res['result'])) {
+						if (count($res['result']['products']) < 1000) {
+							$check = false;
+						} else {
+							$check = true;
+						}
+					} else {
+						$check = false;
+						print_r($res );
+						echo "ОШИБКА В ОТВЕТЕ API OZON";
+						$triggers = new TsTriggers();
+						$triggers->SetError(["ОШИБКА ПРИ ОБНОВЛЕНИИ АКЦИЙ [". date('d.m.Y H:i:s')."]\n"]);
+						$triggers->SendTriggerErrors();
+						die();
+					}
+					foreach ($res['result']['products'] as $key => $value) {
+						if (isset($this->items[$value['id']])) {
+							$this->tmpPorducts[$saleID]['CAN'][$value['id']] = [
+								'product_id' => $value['id'],
+								'need_price' => $value['max_action_price'],
+								'check_price' => $value['action_price'],
+								'arr' => $value
+							];
+						}
+					}
+					$i=$i+1000;
+				}
+		}
+
+	}
+
+//new vers
+public function CheckItemsAll()
+{
+	$this->check = array();
+	if (!empty($this->salesActive)) {
+		foreach ($this->salesActive as $k => $sale) {
+			foreach ($this->items as $key => &$item) {
+
+
+
+				//UNSET CHECK
+				if (in_array($item['OZON_ID'], $this->deleteArr) && !in_array($item['OZON_ID'],$this->usesNow[$sale['sale_id']])) {
+					$this->arTmpResU[$sale['sale_id']]['BAD'][$item['OZON_ID']] = [
+						'ozon_id' => $item['OZON_ID'],
+						'model' => $item['MODEL'],
+						'sebes' => $item['SEBES'],
+						'price' => $item['PRICE'],
+						'needed' => '',
+						'perc' => '',
+						'skdSebes' => '',
+						'com' => '',
+						'newCom' => '',
+						'merg' => '',
+						'min_profit' => '',
+					];
+
+					if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+						$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+					} else {
+						$curSaleprice = 'отсутствует';
+					}
+
+					$this->detail[$item['MODEL']][$sale['sale_id']] = [
+						'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+						'sale' => $sale['name'],
+						'sebes' => $item['SEBES'],
+						'fbo' => $item['FBO'],
+						'cur_sale_price' => '',
+						'price_raschet' => '',
+						'merg_raschet' => '',
+						'cur_price' => '',
+						'cur_min_prof' => '',
+						'status' => 'delete'
+					];
+
+					$reason = 'Товар удален из акции, т.к. вошел в другую акцию по приоритету';
+
+					$this->arLog[$sale['sale_id']]['DELETE'][$item['OZON_ID']] = [
+						'ozon_id' => $item['OZON_ID'],
+						'model' => $item['MODEL'],
+						'reason' => $reason,
+					];
+					continue;
+				}
+
+
+				//$this->info[$item['MODEL']][$sale['sale_id']] = $this->tmpPorductsM[$sale['sale_id']]['CAN'][$item['OZON_ID']]['need_price'];
+				if (in_array($item['BRAND'], $sale['brand_unset'])) {
+					$this->arTmpResU[$sale['sale_id']]['BAD'][$item['OZON_ID']] = [
+						'ozon_id' => $item['OZON_ID'],
+						'model' => $item['MODEL'],
+						'sebes' => '',
+						'price' => '',
+						'needed' => '',
+						'perc' => '',
+						'skdSebes' => '',
+						'com' => '',
+						'newCom' => '',
+						'merg' => '$merg',
+						'min_profit' => '',
+					];
+					$reason = 'Бренд исключен!';
+				} else if (isset($this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]) && !empty($item['PRICE'])) {
+					$needed = $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['need_price'];
+					//СТРОГАЯ ПРОВЕРКА
+					if (!isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+						$this->curSalePrice[$item['MODEL']][$sale['sale_id']] = $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['check_price'];
+						$this->info[$item['MODEL']][$sale['sale_id']] = $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['check_price'];
+					}
+					// $this->curSalePrice[$item['MODEL']][$sale['sale_id']] = $this->tmpPorductsM[$sale['sale_id']]['CAN'][$item['OZON_ID']]['check_price'];
+					// print_r($this->tmpPorductsM[$sale['sale_id']]['CAN'][$item['OZON_ID']]);
+					//идеал
+					if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']]) && $this->curSalePrice[$item['MODEL']][$sale['sale_id']] >= $needed) {
+						$needed = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+						if ($needed > $item['PRICE']) {
+							$needed = $item['PRICE'];
+						}
+
+						//КАСТЫЛЬ
+						//if ($sale['sale_id'] == '1569653') {
+							$needed = $item['PRICE'] * (1 - intval($sale['perc']) / 100);
+							if ($this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['need_price'] < $needed) {
+								$this->arTmpResU[$sale['sale_id']]['BAD'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => $item['SEBES'],
+									'price' => $item['PRICE'],
+									'needed' => $needed,
+									'perc' => floatval($sale['perc']),
+									'skdSebes' => '',
+									'com' => floatval($this->com),
+									'newCom' => floatval($this->com) - floatval($sale['skd']),
+									'merg' => '',
+									'min_profit' => $this->minprof,
+								];
+
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $needed,
+									'merg_raschet' => $merg,
+									'cur_price' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['need_price'],
+									'cur_min_prof' => $this->minprof,
+									'status' => 'delete'
+								];
+
+								if ($skdSebes > $needed) {
+									$reason = 'Условия больше не идеальны. Продаем в минус.<br>Не проходим по мин. цене: ' . $skdSebes . ' > ' . $needed . ' (расчет с учетом уменьшенной коммиссии на ' . $sale['skd'] . ')';
+								} else if ($this->minprof > $merg) {
+									$reason = 'Условия больше не идеальны. Продаем в минус.<br>Не проходим по минимально маржинальности: ' . $this->minprof . ' > ' . $merg . ' (расчет с учетом уменьшенной коммиссии на ' . $sale['skd'] . ')';
+								} else {
+									$reason = "Условия больше не идеальны. Продаем в минус.";
+								}
+								if (in_array($item['MODEL'], $this->indivMarkups)) {
+									$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+								}
+								$this->arLog[$sale['sale_id']]['DELETE'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+								continue;
+							}
+						//}
+
+
+						if (!empty($sale['skd'])) {
+							if (isset($this->checkFBOPrice[$item['MODEL']]) && !empty($sale['skd_fbo'])) {
+								$newCom = (floatval($this->com) - $sale['skd'] - $sale['skd_fbo']) / 100;
+							} else {
+								$newCom = (floatval($this->com) - $sale['skd']) / 100;
+							}
+
+							$com = floatval($this->com) / 100;
+							$merg = ($needed - $needed * $newCom) - floatval($item['SEBES']);
+
+							if (isset($sale['perc']) && !empty($sale['perc']) && !isset($this->markups[$item['MODEL']])) {
+								$fsb = $item['PRICE'] * (1 - intval($sale['perc']) / 100);
+							} else {
+								$fsb = $item['PRICE'];
+							}
+							$skdSebes = ($fsb * (1 - $com)) / (1 - $newCom);
+
+							if ($skdSebes > $needed or $this->minprof > $merg) {
+								$this->arTmpResU[$sale['sale_id']]['BAD'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => $item['SEBES'],
+									'price' => $item['PRICE'],
+									'needed' => $needed,
+									'perc' => floatval($sale['perc']),
+									'skdSebes' => $skdSebes,
+									'com' => floatval($this->com),
+									'newCom' => floatval($this->com) - $sale['skd'],
+									'merg' => $merg,
+									'min_profit' => $this->minprof,
+								];
+
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $skdSebes,
+									'merg_raschet' => $merg,
+									'cur_price' => $needed,
+									'cur_min_prof' => $this->minprof,
+									'status' => 'delete'
+								];
+
+								if ($skdSebes > $needed) {
+									$reason = 'Условия больше не идеальны. Продаем в минус.<br>Не проходим по мин. цене: ' . $skdSebes . ' > ' . $needed . ' (расчет с учетом уменьшенной коммиссии на ' . $sale['skd'] . ')';
+								} else if ($this->minprof > $merg) {
+									$reason = 'Условия больше не идеальны. Продаем в минус.<br>Не проходим по минимально маржинальности: ' . $this->minprof . ' > ' . $merg . ' (расчет с учетом уменьшенной коммиссии на ' . $sale['skd'] . ')';
+								} else {
+									$reason = "Ошибка неизвестна.";
+								}
+								if (in_array($item['MODEL'], $this->indivMarkups)) {
+									$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+								}
+								$this->arLog[$sale['sale_id']]['DELETE'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+							} else {
+								$this->arTmpResU[$sale['sale_id']]['GOOD'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => $item['SEBES'],
+									'price' => $item['PRICE'],
+									'needed' => $needed,
+									'perc' => floatval($sale['perc']),
+									'skdSebes' => $skdSebes,
+									'com' => floatval($this->com),
+									'newCom' => floatval($this->com) - $sale['skd'],
+									'merg' => $merg,
+									'min_profit' => $this->minprof,
+								];
+								$this->forUpdatePrice[] = [
+									'sale_id' => $sale['sale_id'],
+									'model' => $item['MODEL'],
+									'price' => $needed,
+								];
+
+								$this->info[$item['MODEL']][$sale['sale_id']] = $needed;
+
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $skdSebes,
+									'merg_raschet' => $merg,
+									'cur_price' => $needed,
+									'cur_min_prof' => $this->minprof,
+									'status' => 'stay'
+								];
+								if ($sale['sort'] != '0') {
+									$this->deleteArr[] = $item['OZON_ID'];
+									$this->usesNow[$sale['sale_id']][] = $item['OZON_ID'];
+								}
+								if (in_array($item['MODEL'], $this->tops)) {
+									$this->salesTop[$sale['sale_id']][] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+									$this->reportTop[$item['MODEL']] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+								}
+
+								if ($skdSebes <= $needed && $this->minprof <= $merg) {
+									$reason = 'Идеальные условия.<br>Проходим по всем сво-вам: ' . $skdSebes . ' <= ' . $needed . ' и ' . $this->minprof . ' <= ' . $merg . ' (расчет с учетом уменьшенной коммиссии на ' . $sale['skd'] . ')';
+								} else {
+									$reason = "Неизвестный случай.";
+								}
+
+								if (in_array($item['MODEL'], $this->indivMarkups)) {
+									$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+								}
+
+								$this->arLog[$sale['sale_id']]['STAY'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+
+								$this->check[$item['OZON_ID']] = 1;
+							}
+						} else {
+							$com = floatval($this->com) / 100;
+							$merg = ($needed - $needed * $com) - floatval($item['SEBES']);
+							if (isset($sale['perc']) && !empty($sale['perc']) && !isset($this->markups[$item['MODEL']])) {
+								$fsb = $item['PRICE'] * (1 - intval($sale['perc']) / 100);
+							} else {
+								$fsb = $item['PRICE'];
+							}
+
+							if (isset($this->checkFBOPrice[$item['MODEL']]) && !empty($sale['skd_fbo'])) {
+								$newCom = (floatval($this->com) - $sale['skd_fbo']) / 100;
+								$fsb = ($fsb * (1 - $com)) / (1 - $newCom);
+							}
+
+							//ЛАСТ КОСТЫЛЬ
+							$res_update = 0;
+							//if ($sale['sale_id'] == '1569653') {
+
+								if ($fsb <= $needed && $this->minprof > $merg) {
+									$newPrice = ($this->minprof + $item['SEBES']) / (1 - $com);
+
+									if ($newPrice <= $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['need_price']) {
+										$needed = $newPrice;
+										$fsb = $newPrice;
+										$merg = $this->minprof;
+										$res_update = 1;
+									}
+								}
+							//}
+
+							if ($fsb > $needed or $this->minprof > $merg) {
+								$this->arTmpResU[$sale['sale_id']]['BAD'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => $item['SEBES'],
+									'price' => $itme['PRICE'],
+									'needed' => $needed,
+									'perc' => $sale['perc'],
+									'com' => $this->com,
+									'merg' => $merg,
+									'min_profit' => $this->minprof,
+								];
+
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $fsb,
+									'merg_raschet' => $merg,
+									'cur_price' => $needed,
+									'cur_min_prof' => $this->minprof,
+									'status' => 'delete'
+								];
+								if ($fsb  > $needed) {
+									$reason = 'Условия больше не идеальны. Продаем в минус.<br>Не проходим по мин. цене: ' . $fsb . ' > ' . $needed . '';
+								} else if ($this->minprof > $merg) {
+									$reason = 'Условия больше не идеальны. Продаем в минус.<br>Не проходим по минимально маржинальности: ' . $this->minprof . ' > ' . $merg . '';
+								} else {
+									$reason = "Ошибка неизвестна.";
+								}
+
+								if (in_array($item['MODEL'], $this->indivMarkups)) {
+									$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+								}
+
+								$this->arLog[$sale['sale_id']]['DELETE'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+							} else {
+								$this->arTmpResU[$sale['sale_id']]['GOOD'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => $item['SEBES'],
+									'price' => $fsb,
+									'needed' => $needed,
+									'perc' => $sale['perc'],
+									'com' => $this->com,
+									'merg' => $merg,
+									'min_profit' => $this->minprof,
+								];
+								$this->forUpdatePrice[] = [
+									'sale_id' => $sale['sale_id'],
+									'model' => $item['MODEL'],
+									'price' => $needed,
+								];
+								$this->info[$item['MODEL']][$sale['sale_id']] = $needed;
+
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $fsb,
+									'merg_raschet' => $merg,
+									'cur_price' => $needed,
+									'cur_min_prof' => $this->minprof,
+									'status' => 'stay'
+								];
+								if ($sale['sort'] != '0') {
+									$this->deleteArr[] = $item['OZON_ID'];
+									$this->usesNow[$sale['sale_id']][] = $item['OZON_ID'];
+								}
+								if (in_array($item['MODEL'], $this->tops)) {
+									$this->salesTop[$sale['sale_id']][] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+									$this->reportTop[$item['MODEL']] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+								}
+
+								if ($fsb <= $needed && $this->minprof <= $merg) {
+									if ($res_update == 0) {
+										$reason = 'Идеальные условия.<br>Проходим по всем сво-вам: ' . $fsb . ' < ' . $needed . ' и ' . $this->minprof . ' < ' . $merg . '';
+									} else {
+										$reason = '(ПЕРЕРАСЧЕТ С МАРЖЕЙ 350) Идеальные условия.<br>Проходим по всем сво-вам: ' . $fsb . ' < ' . $needed . ' и ' . $this->minprof . ' < ' . $merg . '';
+									}
+								} else {
+									$reason = "Неизвестный случай.";
+								}
+
+								if (in_array($item['MODEL'], $this->indivMarkups)) {
+									$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+								}
+
+								$this->arLog[$sale['sale_id']]['STAY'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+
+								$this->check[$item['OZON_ID']] = 1;
+							}
+						}
+							//если меньше
+					} else if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']]) && $this->curSalePrice[$item['MODEL']][$sale['sale_id']] < $needed) {
+						//КАСТЫЛЬ
+						//if ($sale['sale_id'] == '1569653') {
+							$needed = $item['PRICE'] * (1 - intval($sale['perc']) / 100);
+						//}
+
+						if (!empty($sale['skd'])) {
+							if (isset($this->checkFBOPrice[$item['MODEL']]) && !empty($sale['skd_fbo'])) {
+								$newCom = (floatval($this->com) - $sale['skd'] - $sale['skd_fbo']) / 100;
+							} else {
+								$newCom = (floatval($this->com) - $sale['skd']) / 100;
+							}
+							$com = floatval($this->com) / 100;
+							$merg = ($needed - $needed * $newCom) - floatval($item['SEBES']);
+							if (isset($sale['perc']) && !empty($sale['perc']) && !isset($this->markups[$item['MODEL']])) {
+								$fsb = $item['PRICE'] * (1 - intval($sale['perc']) / 100);
+							} else {
+								$fsb = $item['PRICE'];
+							}
+							$skdSebes = ($fsb * (1 - $com)) / (1 - $newCom);
+
+							if ($skdSebes > $needed or $this->minprof > $merg) {
+								$this->arTmpResU[$sale['sale_id']]['BAD'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => $item['SEBES'],
+									'price' => $item['PRICE'],
+									'needed' => $needed,
+									'perc' => floatval($sale['perc']),
+									'skdSebes' => $skdSebes,
+									'com' => floatval($this->com),
+									'newCom' => floatval($this->com) - $sale['skd'],
+									'merg' => $merg,
+									'min_profit' => $this->minprof,
+								];
+
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $skdSebes,
+									'merg_raschet' => $merg,
+									'cur_price' => $needed,
+									'cur_min_prof' => $this->minprof,
+									'status' => 'delete'
+								];
+
+								if ($skdSebes > $needed) {
+									$reason = 'Выпадаем из акции. Не проходим по мин. цене: ' . $skdSebes . ' > ' . $needed . ' (расчет с учетом уменьшенной коммиссии на ' . $sale['skd'] . ')';
+								} else if ($this->minprof > $merg) {
+									$reason = 'Выпадаем из акции. Не проходим по минимально маржинальности: ' . $this->minprof . ' > ' . $merg . ' (расчет с учетом уменьшенной коммиссии на ' . $sale['skd'] . ')';
+								} else {
+									$reason = "Ошибка неизвестна.";
+								}
+								if (in_array($item['MODEL'], $this->indivMarkups)) {
+									$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+								}
+								$this->arLog[$sale['sale_id']]['DELETE'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+							} else {
+								$needed_ed = $needed;
+								$status_ed = 'stay-with-up';
+								if ($needed > $item['PRICE']) {
+									$needed = $item['PRICE'];
+									$status_ed = 'stay-with-rrc';
+								}
+								$this->arTmpResU[$sale['sale_id']]['REP'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => $item['SEBES'],
+									'price' => $item['PRICE'],
+									'needed' => $needed,
+									'perc' => floatval($sale['perc']),
+									'skdSebes' => $skdSebes,
+									'com' => floatval($this->com),
+									'newCom' => floatval($this->com) - $sale['skd'],
+									'merg' => $merg,
+									'min_profit' => $this->minprof,
+								];
+								$this->forUpdatePrice[] = [
+									'sale_id' => $sale['sale_id'],
+									'model' => $item['MODEL'],
+									'price' => $needed,
+								];
+
+								$this->info[$item['MODEL']][$sale['sale_id']] = $needed;
+
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $skdSebes,
+									'merg_raschet' => $merg,
+									'cur_price' => $needed_ed,
+									'cur_min_prof' => $this->minprof,
+									'status' => $status_ed
+								];
+								if ($sale['sort'] != '0') {
+									$this->deleteArr[] = $item['OZON_ID'];
+									$this->usesNow[$sale['sale_id']][] = $item['OZON_ID'];
+								}
+								if (in_array($item['MODEL'], $this->tops)) {
+									$this->salesTop[$sale['sale_id']][] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+									$this->reportTop[$item['MODEL']] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+								}
+
+								if ($skdSebes <= $needed && $this->minprof <= $merg) {
+									$reason = 'Повышаем текущую цену акции.<br>Проходим по всем сво-вам: ' . $skdSebes . ' <= ' . $needed . ' и ' . $this->minprof . ' <= ' . $merg . ' (расчет с учетом уменьшенной коммиссии на ' . $sale['skd'] . ')';
+								} else {
+									$reason = "Неизвестный случай.";
+								}
+
+								if (in_array($item['MODEL'], $this->indivMarkups)) {
+									$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+								}
+
+								$this->arLog[$sale['sale_id']]['STAY-UP'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+
+								$this->check[$item['OZON_ID']] = 1;
+							}
+						} else {
+							$com = floatval($this->com) / 100;
+							$merg = ($needed - $needed * $com) - floatval($item['SEBES']);
+							if (isset($sale['perc']) && !empty($sale['perc']) && !isset($this->markups[$item['MODEL']])) {
+								$fsb = $item['PRICE'] * (1 - intval($sale['perc']) / 100);
+							} else {
+								$fsb = $item['PRICE'];
+							}
+
+							if (isset($this->checkFBOPrice[$item['MODEL']]) && !empty($sale['skd_fbo'])) {
+								$newCom = (floatval($this->com) - $sale['skd_fbo']) / 100;
+								$fsb = ($fsb * (1 - $com)) / (1 - $newCom);
+							}
+
+							//ЛАСТ КОСТЫЛЬ
+							$res_update = 0;
+							//if ($sale['sale_id'] == '1569653') {
+
+								if ($fsb <= $needed && $this->minprof > $merg) {
+									$newPrice = ($this->minprof + $item['SEBES']) / (1 - $com);
+									if ($newPrice <= $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['need_price']) {
+										$needed = $newPrice;
+										$fsb = $newPrice;
+										$merg = $this->minprof;
+										$res_update = 1;
+									}
+								}
+							//}
+
+
+							if ($fsb > $needed or $this->minprof > $merg) {
+								$this->arTmpResU[$sale['sale_id']]['BAD'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => $item['SEBES'],
+									'price' => $itme['PRICE'],
+									'needed' => $needed,
+									'perc' => $sale['perc'],
+									'com' => $this->com,
+									'merg' => $merg,
+									'min_profit' => $this->minprof,
+								];
+
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $fsb,
+									'merg_raschet' => $merg,
+									'cur_price' => $needed,
+									'cur_min_prof' => $this->minprof,
+									'status' => 'delete'
+								];
+								if ($fsb  > $needed) {
+									$reason = 'Выпадаем из акции. Не проходим по мин. цене: ' . $fsb . ' > ' . $needed . '';
+								} else if ($this->minprof > $merg) {
+									$reason = 'Выпадаем из акции. Не проходим по минимально маржинальности: ' . $this->minprof . ' > ' . $merg . '';
+								} else {
+									$reason = "Ошибка неизвестна.";
+								}
+
+								if (in_array($item['MODEL'], $this->indivMarkups)) {
+									$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+								}
+
+								$this->arLog[$sale['sale_id']]['DELETE'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+							} else {
+								$needed_ed = $needed;
+								$status_ed = 'stay-with-up';
+								if ($needed > $item['PRICE']) {
+									$needed = $item['PRICE'];
+									$status_ed = 'stay-with-rrc';
+								}
+								$this->arTmpResU[$sale['sale_id']]['REP'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => $item['SEBES'],
+									'price' => $fsb,
+									'needed' => $needed,
+									'perc' => $sale['perc'],
+									'com' => $this->com,
+									'merg' => $merg,
+									'min_profit' => $this->minprof,
+								];
+								$this->forUpdatePrice[] = [
+									'sale_id' => $sale['sale_id'],
+									'model' => $item['MODEL'],
+									'price' => $needed,
+								];
+								$this->info[$item['MODEL']][$sale['sale_id']] = $needed;
+								if ($sale['sort'] != '0') {
+									$this->deleteArr[] = $item['OZON_ID'];
+									$this->usesNow[$sale['sale_id']][] = $item['OZON_ID'];
+								}
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $fsb,
+									'merg_raschet' => $merg,
+									'cur_price' => $needed_ed,
+									'cur_min_prof' => $this->minprof,
+									'status' => $status_ed
+								];
+
+								if (in_array($item['MODEL'], $this->tops)) {
+									$this->salesTop[$sale['sale_id']][] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+									$this->reportTop[$item['MODEL']] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+								}
+
+								if ($fsb <= $needed && $this->minprof <= $merg) {
+									if ($res_update == 0) {
+										$reason = 'Повышаем текущую цену акции.<br>Проходим по всем сво-вам: ' . $fsb . ' < ' . $needed . ' и ' . $this->minprof . ' < ' . $merg . '';
+									} else {
+										$reason = '(ПЕРЕСЧЕТ С УЧЕТОМ МАРЖИ = 350)Повышаем текущую цену акции.<br>Проходим по всем сво-вам: ' . $fsb . ' < ' . $needed . ' и ' . $this->minprof . ' < ' . $merg . '';
+									}
+								} else {
+									$reason = "Неизвестный случай.";
+								}
+
+								if (in_array($item['MODEL'], $this->indivMarkups)) {
+									$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+								}
+
+								$this->arLog[$sale['sale_id']]['STAY-UP'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+
+									// unset($this->tmpPorductsM[$sale['sale_id']]['USES'][$item['OZON_ID']]);
+									// unset($this->items[$key]);
+									// print_r('<br>GOOD: '.$item['OZON_ID'].' - '.$sale['sale_id'].' - ' .$item['MODEL'].'<br>');
+								 // print_r(array());
+								$this->check[$item['OZON_ID']] = 1;
+							}
+						}
+						//}
+					}
+				}
+			}
+			foreach ($this->items as $key => &$item) {
+							//UNSET CHECK
+							if (in_array($item['OZON_ID'],$this->deleteArr) && !in_array($item['OZON_ID'],$this->usesNow[$sale['sale_id']])) {
+								$this->arTmpRes[$sale['sale_id']]['BAD'][] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'sebes' => '',
+									'price' => '',
+									'needed' => '',
+									'perc' => '',
+									'skdSebes' => '',
+									'com' => '',
+									'newCom' => '',
+									'merg' => '$merg',
+									'min_profit' => '',
+								];
+
+
+								if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+									$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+								} else {
+									$curSaleprice = 'отсутствует';
+								}
+
+
+								$this->detail[$item['MODEL']][$sale['sale_id']] = [
+									'ozon_answer' => $this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['arr'],
+									'sale' => $sale['name'],
+									'fbo' => $item['FBO'],
+									'sebes' => $item['SEBES'],
+									'cur_sale_price' => $curSaleprice,
+									'price_raschet' => $skdSebes,
+									'merg_raschet' => $merg,
+									'cur_price' => $needed,
+									'cur_min_prof' => $this->minprof,
+									'status' => 'not-add'
+								];
+
+								$reason = 'Товар не добавлен в акцию, т.к. вошел в другую акцию по приоритету';
+
+								$this->arLog[$sale['sale_id']]['NOT_ADD'][$item['OZON_ID']] = [
+									'ozon_id' => $item['OZON_ID'],
+									'model' => $item['MODEL'],
+									'reason' => $reason,
+								];
+
+								continue;
+							}
+
+						if (in_array($item['BRAND'],$sale['brand_unset'])) {
+
+							$this->arTmpRes[$sale['sale_id']]['BAD'][] = [
+								'ozon_id' => $item['OZON_ID'],
+								'model' => $item['MODEL'],
+								'sebes' => '',
+								'price' => '',
+								'needed' => '',
+								'perc' => '',
+								'skdSebes' => '',
+								'com' => '',
+								'newCom' => '',
+								'merg' => '$merg',
+								'min_profit' => '',
+							];
+							$reason = 'Бренд исключен!';
+							//break;
+						} else	if (isset($this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]) && !empty($item['PRICE']) && !isset($this->arTmpResU[$sale['sale_id']]['GOOD'][$item['OZON_ID']])) {
+							$needed = $this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['need_price'];
+							//КАСТЫЛЬ
+							//if ($sale['sale_id'] == '1569653') {
+								$needed = $item['PRICE'] * (1 - intval($sale['perc']) / 100);
+								if ($this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['need_price'] < $needed) {
+									$this->arTmpRes[$sale['sale_id']]['BAD'][] = [
+										'ozon_id' => $item['OZON_ID'],
+										'model' => $item['MODEL'],
+										'sebes' => 	$item['SEBES'],
+										'price' => $item['PRICES'],
+										'needed' => $needed,
+										'perc' => floatval($sale['perc']),
+										'skdSebes' => '',
+										'com' => floatval($this->com),
+										'newCom' => floatval($this->com) - floatval($sale['skd']),
+										'merg' => '',
+										'min_profit' => $this->minprof,
+									];
+
+									if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+										$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+									} else {
+										$curSaleprice = 'отсутствует';
+									}
+
+
+									$this->detail[$item['MODEL']][$sale['sale_id']] = [
+										'ozon_answer' => $this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['arr'],
+										'sale' => $sale['name'],
+										'fbo' => $item['FBO'],
+										'sebes' => $item['SEBES'],
+										'cur_sale_price' => $curSaleprice,
+										'price_raschet' => $needed,
+										'merg_raschet' => $merg,
+										'cur_price' => $this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['need_price'],
+										'cur_min_prof' => $this->minprof,
+										'status' => 'not-add'
+									];
+
+
+									$reason = "Не проходим по мин. цене: ".$this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['need_price']." < ".$needed."";
+
+
+									$this->arLog[$sale['sale_id']]['NOT_ADD'][$item['OZON_ID']] = [
+										'ozon_id' => $item['OZON_ID'],
+										'model' => $item['MODEL'],
+										'reason' => $reason,
+									];
+								continue;
+								}
+							//}
+							if (!empty($sale['skd'])) {
+								if (isset($this->checkFBOPrice[$item['MODEL']]) && !empty($sale['skd_fbo'])) {
+									$newCom = (floatval($this->com) - $sale['skd'] - $sale['skd_fbo']) / 100;
+								}else{
+									$newCom = (floatval($this->com) - $sale['skd']) / 100;
+								}
+
+								// print_r('<br>');
+								// print_r($newCom);
+								$com = floatval($this->com) / 100;
+								// print_r('<br>');
+								// print_r($com);
+								$merg = ($needed - $needed * $newCom) -floatval($item['SEBES']);
+
+								// print_r('<br>');
+								// print_r($merg);
+								if (isset($sale['perc']) && !empty($sale['perc'])  && !isset($this->markups[$item['MODEL']])) {
+									$fsb = $item['PRICE'] * (1 - intval($sale['perc'])/100);
+								} else {
+									$fsb = $item['PRICE'];
+								}
+								// print_r('<br>');
+								// print_r($fsb);
+								$skdSebes = ($fsb * (1 - $com)) / (1 - $newCom);
+								//$skdSebesPerc = $fsb * ((($fsb - ($fsb * $newCom)) - ($fsb - ($fsb * $com)))/($fsb - ($fsb * $newCom)));
+								// print_r('<br>');
+								// print_r($skdSebesPerc);
+								//$skdSebes = $fsb - $skdSebesPerc;
+								// print_r('<br>');
+								// print_r($skdSebes);
+								//die();
+								if ($skdSebes > $needed or $this->minprof > $merg) {
+									$this->arTmpRes[$sale['sale_id']]['BAD'][] = [
+										'ozon_id' => $item['OZON_ID'],
+										'model' => $item['MODEL'],
+										'sebes' => 	$item['SEBES'],
+										'price' => $item['PRICES'],
+										'needed' => $needed,
+										'perc' => floatval($sale['perc']),
+										'skdSebes' => $skdSebes,
+										'com' => floatval($this->com),
+										'newCom' => floatval($this->com) - $sale['skd'],
+										'merg' => $merg,
+										'min_profit' => $this->minprof,
+									];
+
+									if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+										$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+									} else {
+										$curSaleprice = 'отсутствует';
+									}
+
+
+									$this->detail[$item['MODEL']][$sale['sale_id']] = [
+										'ozon_answer' => $this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['arr'],
+										'sale' => $sale['name'],
+										'fbo' => $item['FBO'],
+										'sebes' => $item['SEBES'],
+										'cur_sale_price' => $curSaleprice,
+										'price_raschet' => $skdSebes,
+										'merg_raschet' => $merg,
+										'cur_price' => $needed,
+										'cur_min_prof' => $this->minprof,
+										'status' => 'not-add'
+									];
+
+									if ($skdSebes > $needed) {
+										$reason = 'Не проходим по мин. цене: '.$skdSebes .' > '.$needed.' (расчет с учетом уменьшенной коммиссии на '.$sale['skd'].')';
+									} else if ($this->minprof > $merg) {
+										$reason = 'Не проходим по минимально маржинальности: '.$this->minprof  .' > '.$merg.' (расчет с учетом уменьшенной коммиссии на '.$sale['skd'].')';
+									} else {
+										$reason = "Ошибка неизвестна.";
+									}
+
+									if (in_array($item['MODEL'],$this->indivMarkups)) {
+										$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+									}
+
+
+									$this->arLog[$sale['sale_id']]['NOT_ADD'][$item['OZON_ID']] = [
+										'ozon_id' => $item['OZON_ID'],
+										'model' => $item['MODEL'],
+										'reason' => $reason,
+									];
+								} else {
+									if ($needed > $item['PRICE']) {
+										$needed = $item['PRICE'];
+									}
+
+									$this->arTmpRes[$sale['sale_id']]['GOOD'][] = [
+										'ozon_id' => $item['OZON_ID'],
+										'model' => $item['MODEL'],
+										'sebes' => $item['SEBES'],
+										'price' => $item['PRICES'],
+										'needed' => $needed,
+										'perc' => floatval($sale['perc']),
+										'skdSebes' => $skdSebes,
+										'com' => floatval($this->com),
+										'newCom' => floatval($this->com) - $sale['skd'],
+										'merg' => $merg,
+										'min_profit' => $this->minprof,
+									];
+
+									$this->info[$item['MODEL']][$sale['sale_id']] = $needed;
+
+									if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+										$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+									} else {
+										$curSaleprice = 'отсутствует';
+									}
+									if ($sale['sort'] != '0') {
+										$this->deleteArr[] = $item['OZON_ID'];
+										$this->usesNow[$sale['sale_id']][] = $item['OZON_ID'];
+									}
+									$this->detail[$item['MODEL']][$sale['sale_id']] = [
+										'ozon_answer' => $this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['arr'],
+										'sale' => $sale['name'],
+										'fbo' => $item['FBO'],
+										'sebes' => $item['SEBES'],
+										'cur_sale_price' => $curSaleprice,
+										'price_raschet' => $skdSebes,
+										'merg_raschet' => $merg,
+										'cur_price' => $needed,
+										'cur_min_prof' => $this->minprof,
+										'status' => 'add'
+									];
+
+									$this->forUpdatePrice[] = [
+										'sale_id' => $sale['sale_id'],
+										'model' => $item['MODEL'],
+										'price' => $needed,
+									];
+									if (in_array($item['MODEL'],$this->tops)) {
+										$this->salesTop[$sale['sale_id']][] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+										$this->reportTop[$item['MODEL']] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+									}
+
+									if ($skdSebes <= $needed && $this->minprof <= $merg) {
+										$reason = 'Проходим по всем сво-вам: '.$skdSebes .' <= '.$needed.' и '.$this->minprof.' <= '.$merg.' (расчет с учетом уменьшенной коммиссии на '.$sale['skd'].')';
+									} else {
+										$reason = "Неизвестный случай.";
+									}
+
+									if (in_array($item['MODEL'],$this->indivMarkups)) {
+										$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+									}
+
+
+									$this->arLog[$sale['sale_id']]['ADD'][$item['OZON_ID']] = [
+										'ozon_id' => $item['OZON_ID'],
+										'model' => $item['MODEL'],
+										'reason' => $reason,
+									];
+									// unset($this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]);
+									// unset($this->items[$key]);
+									$this->check[$item['OZON_ID']] = 1;
+								}
+							} else {
+
+									$com = floatval($this->com) / 100;
+									$merg = ($needed - $needed * $com) - floatval($item['SEBES']);;
+									if (isset($sale['perc']) && !empty($sale['perc'])  && !isset($this->markups[$item['MODEL']])) {
+										$fsb = $item['PRICE'] * (1 - intval($sale['perc'])/100);
+									} else {
+										$fsb = $item['PRICE'];
+									}
+
+									if (isset($this->checkFBOPrice[$item['MODEL']]) && !empty($sale['skd_fbo'])) {
+										$newCom = (floatval($this->com) - $sale['skd_fbo']) / 100;
+										// $skdSebesPerc = $fsb * ((($fsb - ($fsb * $newCom)) - ($fsb - ($fsb * $com)))/($fsb - ($fsb * $newCom)));
+										// $fsb = $fsb - $skdSebesPerc;
+										$fsb = ($fsb * (1 - $com)) / (1 - $newCom);
+									}
+
+									//ЛАСТ КОСТЫЛЬ
+									$res_update = 0;
+									//if ($sale['sale_id'] == '1569653') {
+
+										if ($fsb <= $needed && $this->minprof > $merg) {
+											$newPrice = ($this->minprof + $item['SEBES']) / (1 - $com);
+											if ($newPrice <= $this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['need_price']) {
+
+												$needed = $newPrice;
+												$fsb = $newPrice;
+												$merg = $this->minprof;
+												$res_update = 1;
+											}
+										}
+									//}
+
+									if ($fsb > $needed or $this->minprof > $merg) {
+										$this->arTmpRes[$sale['sale_id']]['BAD'][] = [
+											'ozon_id' => $item['OZON_ID'],
+											'model' => $item['MODEL'],
+											'sebes' => $item['SEBES'],
+											'price' => $fsb,
+											'needed' => $needed,
+											'perc' => floatval($sale['perc']),
+											'com' => floatval($this->com),
+											'merg' => $merg,
+											'min_profit' => $this->minprof,
+										];
+
+										if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+											$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+										} else {
+											$curSaleprice = 'отсутствует';
+										}
+
+										$this->detail[$item['MODEL']][$sale['sale_id']] = [
+											'ozon_answer' => $this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['arr'],
+											'sale' => $sale['name'],
+											'fbo' => $item['FBO'],
+											'sebes' => $item['SEBES'],
+											'cur_sale_price' => $curSaleprice,
+											'price_raschet' => $fsb,
+											'merg_raschet' => $merg,
+											'cur_price' => $needed,
+											'cur_min_prof' => $this->minprof,
+											'status' => 'not-add'
+										];
+
+										if ($fsb > $needed) {
+											$reason = 'Не проходим по мин. цене: '. $fsb .' > '.$needed.'';
+										} else if ($this->minprof > $merg) {
+											$reason = 'Не проходим по минимально маржинальности: '.$this->minprof  .' > '.$merg.'';
+										} else {
+											$reason = "Ошибка неизвестна.";
+										}
+
+										if (in_array($item['MODEL'],$this->indivMarkups)) {
+											$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+										}
+
+
+										$this->arLog[$sale['sale_id']]['NOT_ADD'][$item['OZON_ID']] = [
+											'ozon_id' => $item['OZON_ID'],
+											'model' => $item['MODEL'],
+											'reason' => $reason,
+										];
+									} else {
+										if ($needed > $item['PRICE']) {
+											$needed = $item['PRICE'];
+										}
+										$this->arTmpRes[$sale['sale_id']]['GOOD'][] = [
+											'ozon_id' => $item['OZON_ID'],
+											'model' => $item['MODEL'],
+											'sebes' => $item['SEBES'],
+											'price' => $fsb,
+											'needed' => $needed,
+											'perc' => floatval($sale['perc']),
+											'com' => floatval($this->com),
+											'merg' => $merg,
+											'min_profit' => $this->minprof,
+										];
+
+										$this->info[$item['MODEL']][$sale['sale_id']] = $needed;
+
+										if (isset($this->curSalePrice[$item['MODEL']][$sale['sale_id']])) {
+											$curSaleprice = $this->curSalePrice[$item['MODEL']][$sale['sale_id']];
+										} else {
+											$curSaleprice = 'отсутствует';
+										}
+
+										$this->detail[$item['MODEL']][$sale['sale_id']] = [
+											'ozon_answer' => $this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]['arr'],
+											'sale' => $sale['name'],
+											'fbo' => $item['FBO'],
+											'sebes' => $item['SEBES'],
+											'cur_sale_price' => $curSaleprice,
+											'price_raschet' => $fsb,
+											'merg_raschet' => $merg,
+											'cur_price' => $needed,
+											'cur_min_prof' => $this->minprof,
+											'status' => 'add'
+										];
+										if ($sale['sort'] != '0') {
+											$this->deleteArr[] = $item['OZON_ID'];
+											$this->usesNow[$sale['sale_id']][] = $item['OZON_ID'];
+										}
+										$this->forUpdatePrice[] = [
+											'sale_id' => $sale['sale_id'],
+											'model' => $item['MODEL'],
+											'price' => $needed,
+										];
+										if (in_array($item['MODEL'],$this->tops)) {
+											$this->salesTop[$sale['sale_id']][] = ['fbo' => $item['FBO'], 'model' => $item['MODEL'], 'sale'=> $sale['name']];
+											$this->reportTop[$item['MODEL']] = ['fbo' => $item['FBO'], 'model'=>$item['MODEL'], 'sale'=> $sale['name']];
+										}
+										// unset($this->tmpPorducts[$sale['sale_id']]['CAN'][$item['OZON_ID']]);
+										// unset($this->items[$key]);
+										if ($fsb <= $needed && $this->minprof <= $merg) {
+											if ($res_update == 0) {
+												$reason = 'Проходим по всем сво-вам: '.$fsb.' <= '.$needed.' и '.$this->minprof.' <= '.$merg.'';
+											} else {
+												$reason = '(ПЕРЕСЧЕТ С МОРЖНОЙ 350) Проходим по всем сво-вам: '.$fsb.' <= '.$needed.' и '.$this->minprof.' <= '.$merg.'';
+											}
+										} else {
+											$reason = "Неизвестный случай.";
+										}
+
+										if (in_array($item['MODEL'],$this->indivMarkups)) {
+											$reason .= '<br><b>ПРИ ПОДСЧЕТЕ РРЦ ИСПОЛЬЗОВАЛАСЬ ИНДИВИДУАЛЬНАЯ НАЦЕНКА</b>';
+										}
+
+
+										$this->arLog[$sale['sale_id']]['ADD'][$item['OZON_ID']] = [
+											'ozon_id' => $item['OZON_ID'],
+											'model' => $item['MODEL'],
+											'reason' => $reason,
+										];
+										$this->check[$item['OZON_ID']] = 1;
+									}
+								}
+						}
+			}
+		}
+	}
+	file_put_contents(
+		"/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/ozon/logs/{$this->cabinet}/sales/log_2.txt",
+		print_r(json_encode($this->arTmpResU), true)
+	);
+}
+
+
+
+	public function UsesReplace(){
+		if (!empty($this->salesActive)) {
+			foreach ($this->salesActive as $k => $sale) {
+				if (!empty($this->arTmpResU[$sale['sale_id']]['REP'])) {
+					$tws = array_chunk($this->arTmpResU[$sale['sale_id']]['REP'],1000);
+					// print_r('<br>********************************************************************************************************<br>');
+					// print_r($sale['sale_id']);
+					// print_r('<br>---------------------------------');
+					foreach ($tws as $key => $values) {
+							foreach ($values as $key => $v) {
+								$tmpPrd[] = ['action_price' => $v['needed'], 'product_id'=> $v['ozon_id']];
+							}
+							$data_string = json_encode(array('action_id'=>$sale['sale_id'],'products'=>$tmpPrd));
+							//file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/ozon/logs/{$this->cabinet}/sales/log_3.txt", print_r($tmpPrd, true).PHP_EOL, FILE_APPEND);
+							$ch = curl_init($this->api_url . '/v1/actions/products/activate');
+								curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+									'Api-Key:' . $this->token,
+									'Client-Id:' . $this->client_id,
+									'Content-Type:application/json'
+								));
+								curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+								curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+								curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+								curl_setopt($ch, CURLOPT_HEADER, false);
+								$res = curl_exec($ch);
+								curl_close($ch);
+
+								$res = json_decode($res, true);
+								//print_r($res);
+								// foreach ($res['result'] as $k => $v) {
+								// 		if ($v['updated'] == '1') {
+								// 			$this->arLog['UPDATE']['GOOD'][] = $v['offer_id'];
+								// 		} else {
+								// 			$this->arLog['UPDATE']['BAD'][] = ['id' => $v['offer_id'],'errors' => $v['errors']];
+								// 		}
+								// }
+								unset($tmpPrd);
+					}
+			}
+			}
+		}
+	}
+
+	public function DeactivateSales(){
+			if (!empty($this->salesActive)) {
+				foreach ($this->salesActive as $k => $sale) {
+						if (empty($this->arTmpResU[$sale['sale_id']]['BAD'])) {
+							continue;
+						}
+
+						$tws = array_chunk($this->arTmpResU[$sale['sale_id']]['BAD'],1000);
+						foreach ($tws as $key => $values) {
+							//print_r($values);
+								foreach ($values as $key => $v) {
+									$tmpPrd[] = $v['ozon_id'];
+								}
+								$data_string = json_encode(array('action_id'=>$sale['sale_id'],'product_ids'=>$tmpPrd));
+								$ch = curl_init($this->api_url . '/v1/actions/products/deactivate');
+									curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+										'Api-Key:' . $this->token,
+										'Client-Id:' . $this->client_id,
+										'Content-Type:application/json'
+									));
+									curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+									curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+									curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+									curl_setopt($ch, CURLOPT_HEADER, false);
+									$res = curl_exec($ch);
+									curl_close($ch);
+
+									$res = json_decode($res, true);
+
+									unset($tmpPrd);
+						}
+				}
+			}
+	}
+
+	public function ActivateSales(){
+			if (!empty($this->salesActive)) {
+				foreach ($this->salesActive as $k => $sale) {
+						$tws = array_chunk($this->arTmpRes[$sale['sale_id']]['GOOD'],1000);
+						// print_r('<br>********************************************************************************************************<br>');
+						// print_r($sale['sale_id']);
+						// print_r('<br>---------------------------------');
+						foreach ($tws as $key => $values) {
+								foreach ($values as $key => $v) {
+									$tmpPrd[] = ['action_price' => $v['needed'], 'product_id'=> $v['ozon_id']];
+								}
+								//file_put_contents("/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/ozon/logs/{$this->cabinet}/sales/log_3.txt", print_r($tmpPrd, true).PHP_EOL, FILE_APPEND);
+								$data_string = json_encode(array('action_id'=>$sale['sale_id'],'products'=>$tmpPrd));
+								$ch = curl_init($this->api_url . '/v1/actions/products/activate');
+									curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+										'Api-Key:' . $this->token,
+										'Client-Id:' . $this->client_id,
+										'Content-Type:application/json'
+									));
+									curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+									curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+									curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+									curl_setopt($ch, CURLOPT_HEADER, false);
+									$res = curl_exec($ch);
+									curl_close($ch);
+
+									$res = json_decode($res, true);
+									//print_r($res);
+									// foreach ($res['result'] as $k => $v) {
+									// 		if ($v['updated'] == '1') {
+									// 			$this->arLog['UPDATE']['GOOD'][] = $v['offer_id'];
+									// 		} else {
+									// 			$this->arLog['UPDATE']['BAD'][] = ['id' => $v['offer_id'],'errors' => $v['errors']];
+									// 		}
+									// }
+									unset($tmpPrd);
+						}
+				}
+			}
+		$perc = 100;
+		$this->db->Update("wdhs_ozon_upload_status_new", array("percent" => $perc), "WHERE agent='sale'", $err_mess.__LINE__);
+	}
+
+	public function DeleteNotActiveSales()	{
+			foreach ($this->NotActiveSales as $key => $value) {
+				$saleID = $value['id'];
+				$i = 0;
+				$check = true;
+				while ($check == true) {
+					$data_string = json_encode(array(
+						"action_id"=> $saleID, "limit" => 1000,"offset" => $i
+					));
+					$ch = curl_init($this->api_url . '/v1/actions/products');
+						curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+							'Api-Key:' . $this->token,
+							'Client-Id:' . $this->client_id,
+							'Content-Type:application/json'
+						));
+						curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+						curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+						curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+						curl_setopt($ch, CURLOPT_HEADER, false);
+						$res = curl_exec($ch);
+						curl_close($ch);
+
+						$res = json_decode($res, true);
+
+						if (isset($res['result'])) {
+							if (count($res['result']['products']) < 1000) {
+								$check = false;
+							} else {
+								$check = true;
+							}
+						} else {
+							$check = false;
+							print_r($res );
+							echo "ОШИБКА В ОТВЕТЕ API OZON";
+							$triggers = new TsTriggers();
+							$triggers->SetError(["ОШИБКА ПРИ ОБНОВЛЕНИИ АКЦИЙ [". date('d.m.Y H:i:s')."]\n"]);
+							$triggers->SendTriggerErrors();
+							die();
+						}
+						foreach ($res['result']['products'] as $key => $value) {
+							$delete[$value['id']] = [
+								'product_id' => $value['id'],
+								'need_price' => $value['max_action_price'],
+							];
+						}
+						$i=$i+1000;
+					}
+					if (!empty($delete)) {
+							$tws = array_chunk($delete,1000);
+							// print_r('<br>********************************************************************************************************<br>');
+							// print_r($sale['sale_id']);
+							//
+							// print_r('<br>---------------------------------');
+							foreach ($tws as $key => $values) {
+									foreach ($values as $key => $v) {
+										$tmpPrd[] = $v['product_id'];
+									}
+									$data_string = json_encode(array('action_id'=>$saleID ,'product_ids'=>$tmpPrd));
+									$ch = curl_init($this->api_url . '/v1/actions/products/deactivate');
+										curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+											'Api-Key:' . $this->token,
+											'Client-Id:' . $this->client_id,
+											'Content-Type:application/json'
+										));
+										curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+										curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+										curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+										curl_setopt($ch, CURLOPT_HEADER, false);
+										$res = curl_exec($ch);
+										curl_close($ch);
+
+										$res = json_decode($res, true);
+										unset($tmpPrd);
+							}
+						}
+			}
+
+			foreach ($this->NotActiveProduct as $key => $value) {
+				$saleID = $key;
+				$i = 0;
+				$check = true;
+				$tws = array_chunk($value,1000);
+
+				foreach ($tws as $key => $values) {
+						foreach ($values as $key => $v) {
+							$tmpPrd[] = $v['product_id'];
+						}
+						$data_string = json_encode(array('action_id'=>$saleID ,'product_ids'=>$tmpPrd));
+						$ch = curl_init($this->api_url . '/v1/actions/products/deactivate');
+							curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+								'Api-Key:' . $this->token,
+								'Client-Id:' . $this->client_id,
+								'Content-Type:application/json'
+							));
+							curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+							curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+							curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+							curl_setopt($ch, CURLOPT_HEADER, false);
+							$res = curl_exec($ch);
+							curl_close($ch);
+
+							$res = json_decode($res, true);
+							unset($tmpPrd);
+				}
+			}
+	}
+
+	public function updateSales()	{
+		$ch = curl_init($this->api_url . '/v1/actions');
+		curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+		  'Api-Key:' . $this->token,
+		  'Client-Id:' . $this->client_id,
+		  'Content-Type:application/json'
+		));
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+		curl_setopt($ch, CURLOPT_HEADER, false);
+		$res = curl_exec($ch);
+		curl_close($ch);
+
+		$res = json_decode($res, true);
+		foreach ($res['result'] as $key => $value){
+			if (isset($this->salesActiveNotSort[$value['id']])) {
+				if (!empty($this->salesTop[$value['id']])) {
+					$tops = count($this->salesTop[$value['id']]);
+				} else {
+					$tops = 0;
+				}
+
+				$ins = array(
+					'active' => "'".$value['is_participating']."'",
+					'potencial' => "'".$value['potential_products_count']."'",
+					'uses' => "'".$value['participating_products_count']."'",
+					'top_models' => "'".$tops."'",
+				);
+
+				$update = [];
+	      foreach ($ins as $key => $v) {
+	          $update[] = "$key = $v";
+	      }
+	      $update = implode(", ", $update);
+
+	      $result = $this->CurDB->query("UPDATE ozon_sales_{$this->cabinet} SET {$update} WHERE sale_id = {$value['id']}");
+
+			}
+		}
+	}
+
+	public function updatePriceTable()	{
+		//print_r($this->forUpdatePrice);
+		$this->CurDB->query("DELETE FROM ozon_sales_prices_{$this->cabinet} WHERE 1=1");
+
+		foreach ($this->forUpdatePrice as $value) {
+			$in = array(
+				"sale_id" => "'".$value['sale_id']."'",
+				"model" => "'".$value['model']."'",
+				"price" => "'".$value['price']."'",
+			);
+			$fields = implode(",", array_keys($in));
+	    $values = implode(",",$in);
+
+	    $sql = "INSERT INTO ozon_sales_prices_{$this->cabinet} ($fields) VALUES ($values)";
+	    $this->CurDB->query($sql);
+		}
+
+		$this->CurDB->query("DELETE FROM ozon_sales_info_{$this->cabinet} WHERE 1=1");
+		foreach ($this->info as $model => $sale) {
+			foreach ($sale as $sale_id => $v) {
+				$in = array(
+					"sale_id" => "'".$sale_id."'",
+					"model" => "'".$model."'",
+					"action_max_price" => "'".$v."'",
+				);
+				$fields = implode(",", array_keys($in));
+		    $values = implode(",",$in);
+
+		    $sql = "INSERT INTO ozon_sales_info_{$this->cabinet} ($fields) VALUES ($values)";
+		    $this->CurDB->query($sql);
+			}
+		}
+	}
+
+}
+
+//(new OzonImportSales())->run();
+//(new OzonImportSalesClass())->UpdateTmpTable();

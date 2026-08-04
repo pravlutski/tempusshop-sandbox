@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<kaspi_catalog xmlns="kaspiShopping" date="2024-06-05" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="kaspiShopping http://kaspi.kz/kaspishopping.xsd">
+  <company>TEMPUS</company>
+  <merchantid>123456</merchantid>
+  <offers>
+    <offer sku="1002">
+      <model>GA-100-1A1</model>
+      <brand>Casio</brand>
+      <availabilities>
+        <availability available="yes" storeId="486555" preOrder="3"/>
+      </availabilities>
+      <price>12000</price>
+    </offer>
+    <offer sku="17685">
+      <model>A-158WA-N1</model>
+      <brand>Casio</brand>
+      <availabilities>
+        <availability available="yes" storeId="486555" preOrder="3"/>
+      </availabilities>
+      <price>1200</price>
+    </offer>
+  </offers>
+</kaspi_catalog>

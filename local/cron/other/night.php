@@ -1,0 +1,162 @@
+#!/usr/bin/php
+<?php
+//#!/usr/local/php/bin/php -q
+// 
+$_SERVER["DOCUMENT_ROOT"] = "/var/www/bitrix/data/www/tempusshop.ru";
+$DOCUMENT_ROOT = $_SERVER["DOCUMENT_ROOT"];
+
+define("NO_KEEP_STATISTIC", true);
+define("NOT_CHECK_PERMISSIONS", true);
+
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+set_time_limit(3600);
+
+CModule::IncludeModule("iblock");
+CModule::IncludeModule("main");
+CModule::IncludeModule("panel.manager");
+
+$objPricelist = new CPanelPricelist;
+$objSupplier = new CPanelSupplier;
+$objCurrency = new CPanelCurrency;
+$objUtils = new CPanelUtils;
+
+//удаляем логи старше 90 дней
+global $DB;
+$DB->Query("DELETE FROM ci_log WHERE timestamp < (NOW() - INTERVAL 90 DAY)", false, $err_mess.__LINE__);
+
+// устанавливаем в свойство "Наши предложения" - "Сделано в Японии", если страна производства “Япония”.
+$arDeact = $arAct = $arAllAct = array();
+
+// выбираем все товары где страна Япония
+
+$arSelect = array("ID", "PROPERTY_HIT");//, "PROPERTY_FLG_PRODUCT_AVAILABLE");
+$arFilter = Array(
+	"IBLOCK_ID" => 16, 
+	"PROPERTY_FINALCOUNTRY" => 122
+);
+$res = CIBlockElement::GetList([], $arFilter, false, false, $arSelect);
+while($arFld = $res->GetNext()){
+	$arNeed[$arFld["ID"]] = [
+		"ID" => $arFld["ID"],
+		"HIT" => array_keys($arFld["PROPERTY_HIT_VALUE"]),
+	];
+}
+
+// выбираем все товары где галка уже стоит
+
+$arSelect = array("ID", "PROPERTY_HIT");//, "PROPERTY_FLG_PRODUCT_AVAILABLE");
+$arFilter = Array(
+	"IBLOCK_ID" => 16, 
+	"PROPERTY_HIT" => 1936
+);
+$res = CIBlockElement::GetList([], $arFilter, false, false, $arSelect);
+while($arFld = $res->GetNext()){
+	$arAlready[$arFld["ID"]] = [
+		"ID" => $arFld["ID"],
+		"HIT" => array_keys($arFld["PROPERTY_HIT_VALUE"]),
+	];
+}
+
+// ставим галку если надо
+foreach($arNeed as $arItem){
+	if(!$arAlready[$arItem["ID"]]){
+		// устанавливаем если галка не стоит
+		$prop = $arItem["HIT"];
+		$prop[] = 1936;
+		
+		CIBlockElement::SetPropertyValueCode($arItem["ID"], "HIT", $prop);  
+		
+	}
+}
+
+// снимаем галку у не нужных
+foreach($arAlready as $arItem){
+	if(!$arNeed[$arItem["ID"]]){
+		// снимаем галку
+		$prop = array_diff($arItem["HIT"], [1936]);
+		if(!$prop) $prop = false;
+		CIBlockElement::SetPropertyValueCode($arItem["ID"], "HIT", $prop);  
+
+	}
+}
+
+// END устанавливаем в свойство "Наши предложения" - "Сделано в Японии", если страна производства “Япония”.
+
+////////////////////////////////////////////////////////////////////////
+
+//ставим галку Новинка на последних 100 товаров
+$arDeact = $arAct = $arAllAct = array();
+
+$arSelect = array("ID","NAME","PROPERTY_HIT");//, "PROPERTY_FLG_PRODUCT_AVAILABLE");
+$arFilter = Array(
+	"IBLOCK_ID" => 16, 
+	">QUANTITY" => 0,
+	//"!PROPERTY_HIT_VALUE" => "Новинка"
+);
+$res = CIBlockElement::GetList(Array("ID" => "DESC"), $arFilter, false, array("nPageSize"=>100), $arSelect);
+while($arFld = $res->GetNext()){
+	//prent($arFld);
+	if(!in_array("Новинка", $arFld["PROPERTY_HIT_VALUE"]))
+		$arAct[$arFld["ID"]] = $arFld["PROPERTY_HIT_VALUE"];
+	$arAllAct[$arFld["ID"]] = $arFld["ID"];
+}
+
+
+$arSelect = array("ID","NAME","PROPERTY_HIT");//, "PROPERTY_FLG_PRODUCT_AVAILABLE");
+$arFilter = Array("IBLOCK_ID" => 16, "PROPERTY_HIT_VALUE" => "Новинка");
+$res = CIBlockElement::GetList(Array("ID" => "DESC"), $arFilter, false, false, $arSelect);
+while($arFld = $res->GetNext()){
+	if(!$arAllAct[$arFld["ID"]])
+		$arDeact[$arFld["ID"]] = $arFld["PROPERTY_HIT_VALUE"];
+}
+//prent($arAct);
+//prent($arDeact);
+//убираем галку Новинка
+if(count($arDeact) > 0){
+	foreach($arDeact as $ELEMENT_ID => $arProp){
+		$arNew = $arProp;
+		unset($arNew[29]);
+		$arNew = array_keys($arNew);
+		CIBlockElement::SetPropertyValueCode($ELEMENT_ID, "HIT", $arNew);  
+	}
+}
+
+//ставим галку Новинка на нужные товары
+if(count($arAct) > 0){
+	
+	foreach($arAct as $ELEMENT_ID => $arProp){
+		$arNew = $arProp;
+		if(!$arNew[29])
+			$arNew[29] = "";
+		$arNew = array_keys($arNew);
+		CIBlockElement::SetPropertyValueCode($ELEMENT_ID, "HIT", $arNew);  
+	}
+}
+// конец установки галки Новинка
+
+/* WB */
+
+//пишим атрибуты
+exec("pgrep -f /userscripts/wb/set_item_props.php",$output,$code); 
+if(count($output) > 0){
+	foreach($output as $pid)
+		exec("kill -9 {$pid}");
+}
+	
+system("/usr/bin/php -f /userscripts/wb/set_item_props.php >>/userscripts/logs/set_item_props.txt");
+CProSet::setOption("WB_ALL_CYCLE_PER", "25");
+
+//пишим цены
+/*
+exec("pgrep -f /userscripts/wb/set_item_price.php",$output,$code); 
+if(count($output) > 0){
+	foreach($output as $pid)
+		exec("kill -9 {$pid}");
+}
+	
+system("/usr/bin/php -f /userscripts/wb/set_item_price.php >>/userscripts/logs/set_item_price.txt");
+CProSet::setOption("WB_ALL_CYCLE_PER", "50");
+*/ 
+
+//require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
+?>

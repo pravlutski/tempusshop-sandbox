@@ -1,0 +1,97 @@
+<?php
+$_SERVER["DOCUMENT_ROOT"] = "/var/www/bitrix/data/www/tempusshop.ru";
+$DOCUMENT_ROOT = $_SERVER["DOCUMENT_ROOT"];
+
+define("NO_KEEP_STATISTIC", true);
+define("NOT_CHECK_PERMISSIONS", true);
+
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+
+$dbMain = \Bitrix\Main\Application::getConnection();
+$dbPanel = new DBPanel;
+
+function getData()
+{
+  $db = \Bitrix\Main\Application::getConnection();
+  $strSql = "SELECT ARTICLE, RESERVED FROM ci_reserved";
+  $result = $db->Query( $strSql );
+  $reserved = [];
+
+  while ( $row = $result->Fetch() ){
+    $reserved[ $row['ARTICLE'] ] = $row['RESERVED'];
+  }
+
+  $strSql = "SELECT id, name FROM ci_brands";
+  $result = $db->Query( $strSql );
+  $brands = [];
+
+  while ( $row = $result->Fetch() ){
+    $brands[ $row['id'] ] = $row['name'];
+  }
+
+  $strSql = "SELECT * FROM wdhs_wb_props WHERE cabinet = 'WR'";
+  $result = $db->Query( $strSql );
+  $nmids = [];
+
+  while ( $row = $result->Fetch() ){
+    $nmids[ $row['article'] ] = $row['nmid'];
+  }
+
+  $strSql = "SELECT model, price, count, brand_id FROM ci_price WHERE active_wb = 'Y' AND model NOT IN ('ФУТЛЯР', 'КОРОБКА', 'КОРО') ORDER BY price ASC";
+
+  $result = $db->Query( $strSql );
+  $items = [];
+
+  while ( $row = $result->Fetch() ) {
+    $items[ $row['model'] ][] = [
+        'brand_id' => $row['brand_id'],
+        'count' => $row['count'],
+        'price' => $row['price'],
+    ];
+  }
+  $result = [];
+  foreach ( $items as $model => $arItem ){
+    $r = $reserved[$model] ?? 0;
+    foreach ( $arItem as $itemPrice ){
+      $restRes = $itemPrice['count'] - $r;
+      if ( $restRes <= 0 ) continue;
+  
+      $result[] = [
+        'Наименование' => "{$brands[ $itemPrice['brand_id'] ]} {$model}",
+        'Артикул' => $model,
+        'Артикул WB' => $nmids[ $model ] ?? '',
+        'Себестоимость' => $itemPrice['price']
+      ];
+      break;
+    }
+  }
+  return $result;
+}
+
+function arrayToCsv($data, $filename = "export.csv")
+{
+    // Открываем файл для записи
+    $file = fopen($filename, 'w');
+
+    // Добавляем BOM для корректного отображения кириллицы в Excel
+    fputs($file, $bom = (chr(0xEF) . chr(0xBB) . chr(0xBF)));
+
+    // Записываем заголовки (если массив ассоциативный)
+    if (!empty($data)) {
+        $firstRow = $data[0];
+        if (is_array($firstRow)) {
+            fputcsv($file, array_keys($firstRow));
+        }
+
+        // Записываем данные
+        foreach ($data as $row) {
+            fputcsv($file, $row);
+        }
+    }
+
+    fclose($file);
+}
+
+$items = getData();
+arrayToCsv( $items, '/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/wb/export/cost_WB.csv' );
+ ?>

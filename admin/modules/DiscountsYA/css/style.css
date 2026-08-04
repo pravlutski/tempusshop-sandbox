@@ -1,0 +1,249 @@
+.upload-buttons-block label, .uni-btn{
+  background-color: #083344;
+  color: white;
+  /* height: 40px; */
+  margin-left: 20px;
+  /* margin-top: 6px; */
+  border-radius: 6px;
+  padding: 10px;
+  width: 250px;
+  text-align: center;
+  font-weight: bolder;
+  cursor: pointer;
+  border: none;
+}
+#save-settings{
+  margin-top: 20px;
+  margin-left: 0px !important;
+}
+#save-settings:hover{
+  margin-top: 20px;
+  margin-left: 0px !important;
+  background-color: #f0ad4e;
+  color: #083344;
+}
+.upload-buttons-block label:hover, .upload-buttons-block button:hover{
+  background-color: #f0ad4e;
+  color: #083344;
+}
+
+.upload-buttons-block{
+  padding-bottom: 20px;
+}
+.logs-block{
+  border-top: 2px solid black;
+  margin-top: 30px;
+  padding-top: 5px;
+}
+
+.logs-block p{
+  margin-left: 20px;
+}
+
+.table-block{
+  border-bottom: 2px solid black;
+  /* margin-top: 20px; */
+  padding-top: 5px;
+}
+
+.table-block p{
+  margin-left: 20px;
+}
+
+.control-header{
+  display: flex;
+  flex-direction: column;
+  /* border: 1px solid black; */
+}
+#type-switcher{
+  border-bottom: 2px solid black;
+  display: flex;
+  padding-bottom: 10px;
+  flex-direction: row;
+}
+#ill-tab, #settings-tab,#logs-tab{
+  border-left: 1px solid black;
+  background-color: #083344;
+  color: white;
+}
+#def-tab{
+  background-color: #f0ad4e;
+  color: #083344;
+}
+#def-tab, #ill-tab, #settings-tab,#logs-tab{
+  height: 40px;
+  width:140px;
+  font-weight: bolder;
+  font-size: 16px;
+}
+.util-name{
+  margin-left: 20px;
+  /* margin-bottom: 30px; */
+  font-weight: bolder;
+}
+.h3-header{
+  margin-bottom: 22px;
+}
+
+.info-block{
+  display: flex;
+  flex-direction: row;
+  border-top: 1px solid rgba(0,0,0,0.13);
+}
+#ill-info-block, .ill-table{
+  min-height: 360px;
+  width: 100%;
+}
+.info-block .ib-table{
+  display: flex;
+  flex-direction: column;
+  width: 90%;
+  padding: 10px;
+  min-height: 400px;
+}
+.counter{
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0,0,0,0.13);
+}
+.result-table{
+  margin-top: 10px
+}
+.result-table td{
+  padding-bottom: 5px;
+  padding-top: 5px;
+}
+tbody tr:nth-child(even) {
+  background-color: #ffffff;
+}
+
+tbody tr:nth-child(odd) {
+  background-color: #f5f5f5;
+}
+.error-alert{
+  background-color: rgba(255,0,0,0.5);
+  padding: 20px;
+  width: 50%;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bolder;
+  border-radius: 6px;
+}
+.info-block .ib-chart{
+  display: flex;
+  flex-direction: column;
+  width: 30%;
+  padding: 20px;
+}
+.margin-calc-block{
+  display: flex;
+  width: 100%;
+  border-top: 1px solid rgba(0,0,0,0.13);
+  padding-top: 20px;
+  /* margin-bottom: 10px; */
+}
+.margin-calc{
+  display: flex;
+  width: 100%;
+  padding: 10px;
+  font-weight: bolder;
+  border: 2px solid black;
+}
+
+.filename-def, .filename-ill{
+  margin-left: 20px;
+  margin-top: 10px;
+  font-weight: bolder;
+  color: #083344;
+}
+
+/* SPINNER */
+.spin-wrapper{
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* background: #080705; */
+}
+  .spinner{
+    position: absolute;
+    height: 60px;
+    width: 60px;
+    border: 3px solid transparent;
+    border-top-color: #A04668;
+    top: 50%;
+    left: 50%;
+    margin: -30px;
+    border-radius: 50%;
+    animation: spin 2s linear infinite;
+}
+@keyframes spin{
+  0% {transform: rotate(0deg);}
+  100% {transform: rotate(360deg);}
+}
+
+/* .input-field{
+  display: flex;
+  width: 70%;
+  border-radius: 6px;
+  height: 36px;
+  margin-left: 20px;
+  padding-left: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  border-bottom: 2px solid;
+  border-color: rgba(8, 51, 68, 1);
+  background-color: #e9e9ed;
+} */
+.margin-calc-block{
+  display: flex;
+  flex-direction: row;
+}
+.margin-calc-fields{
+  display: flex;
+  flex-direction: column;
+  padding-left: 20px;
+  padding-bottom: 15px;
+  width: 50%;
+}
+.margin-info-block{
+  width: 50%;
+  padding: auto;
+  margin-top: 5%;
+  font-size: 19px;
+  font-weight: bolder;
+  display: block;
+}
+.inside-goods{
+  font-size: 19px;
+  font-weight: bolder;
+  display: block;
+}
+#discount-max{
+  margin-left: 37px;
+}
+#comission{
+  margin-left: 18px;
+}
+#markup{
+  margin-left: 29px;
+}
+.def-set, .ill-set{
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid black;
+  width: 70%;
+}
+.def-set h3, .ill-set h3{
+  margin-bottom: 20px;
+}
+.def-set summary, .ill-set summary{
+  font-size: 18px;
+  font-weight: bolder;
+  margin-left: 20px;
+  width: 30%;
+  padding: 5px;
+  cursor: pointer;
+}
+.def-set summary:hover, .ill-set summary:hover{
+  color: #083344;
+}

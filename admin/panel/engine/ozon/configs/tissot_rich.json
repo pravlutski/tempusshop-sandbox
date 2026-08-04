@@ -1,0 +1,409 @@
+{
+  "content": [
+    {
+      "widgetName": "raShowcase",
+      "type": "billboard",
+      "blocks": [
+        {
+          "imgLink": "",
+          "img": {
+            "src": "https://i.ibb.co/td5Qw20/65-F2-M8tg-VU8-Photoroom-gigapixel.png",
+            "srcMobile": "https://i.ibb.co/td5Qw20/65-F2-M8tg-VU8-Photoroom-gigapixel.png",
+            "alt": "",
+            "position": "width_full",
+            "positionMobile": "width_full",
+            "widthMobile": 2160,
+            "heightMobile": 862
+          },
+          "title": {
+            "items": [
+              {
+                "type": "text",
+                "content": "TEMPUS – ОФИЦИАЛЬНЫЙ ЧАСОВОЙ РИТЕЙЛЕР"
+              }
+            ],
+            "size": "size4",
+            "align": "left",
+            "color": "color1"
+          },
+          "text": {
+            "size": "size3",
+            "align": "left",
+            "color": "color1",
+            "items": [
+              {
+                "type": "text",
+                "content": "Наш магазин — ваш надежный поставщик оригинальных часов с опытом более 12 лет. Обеспечиваем прямые поставки 30+ брендов, включая лучшие японские часы (Seiko, Orient, Casio) и легендарные швейцарские марки (Tissot, Certina, Maurice Lacroix, Longines, Frederique Constant, Raymond Weil)."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "widgetName": "raShowcase",
+      "type": "billboard",
+      "blocks": [
+        {
+          "imgLink": "",
+          "img": {
+            "src": "https://cdn1.ozone.ru/s3/multimedia-1-7/8120709223.jpg",
+            "srcMobile": "https://cdn1.ozone.ru/s3/multimedia-1-g/8120709088.jpg",
+            "alt": "",
+            "position": "width_full",
+            "positionMobile": "width_full",
+            "widthMobile": 1680,
+            "heightMobile": 1600
+          },
+          "title": {
+            "items": [
+              {
+                "type": "text",
+                "content": "ПОСТАВЛЯЕМ ЧАСЫ TISSOT НАПРЯМУЮ ИЗ ШВЕЙЦАРИИ"
+              }
+            ],
+            "size": "size4",
+            "align": "left",
+            "color": "color1"
+          },
+          "text": {
+            "size": "size3",
+            "align": "left",
+            "color": "color1",
+            "items": [
+              {
+                "type": "text",
+                "content": "Tissot – швейцарское качество с 1853 года. Эти часы – идеальное сочетание классического дизайна и передовых технологий, будь то спортивные модели Tissot T-Race или элегантная коллекция Le Locle."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "widgetName": "raShowcase",
+      "type": "billboard",
+      "blocks": [
+        {
+          "imgLink": "",
+          "img": {
+            "src": "https://cdn1.ozone.ru/s3/multimedia-b/6272718119.jpg",
+            "srcMobile": "https://cdn1.ozone.ru/s3/multimedia-b/6272718119.jpg",
+            "alt": "",
+            "position": "width_one_third",
+            "positionMobile": "width_full",
+            "widthMobile": 1300,
+            "heightMobile": 1510
+          },
+          "title": {
+            "items": [
+              {
+                "type": "text",
+                "content": "PROPERTY_BRAND + Раздел 3-го уровня"
+              }
+            ],
+            "size": "size5",
+            "align": "center",
+            "color": "color1"
+          },
+          "text": {
+            "size": "size4",
+            "align": "center",
+            "color": "color1",
+            "items": [
+              {
+                "type": "text",
+                "content": "CML2_ARTICLE"
+              },
+              {
+                "type": "br"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "widgetName": "raTextBlock",
+      "title": {
+        "items": [
+          {
+            "type": "text",
+            "content": "Описание модели"
+          }
+        ],
+        "size": "size4",
+        "color": "color1",
+        "align": "left"
+      },
+      "theme": "tertiary",
+      "padding": "type2",
+      "gapSize": "m",
+      "text": {
+        "size": "size3",
+        "align": "left",
+        "color": "color1",
+        "items": [
+          {
+            "type": "text",
+            "content": "DESC_RICH_OZON"
+          },
+          {
+            "type": "br"
+          }
+        ]
+      }
+    },
+    {
+      "widgetName": "raShowcase",
+      "type": "billboard",
+      "blocks": [
+        {
+          "imgLink": "",
+          "img": {
+            "src": "https://i.ibb.co/Kcwr2nVM/image-2-gigapixel.png",
+            "srcMobile": "https://i.ibb.co/Kcwr2nVM/image-2-gigapixel.png",
+            "alt": "",
+            "position": "width_half",
+            "positionMobile": "width_full",
+            "widthMobile": 1296,
+            "heightMobile": 1141
+          },
+          "title": {
+            "items": [
+              {
+                "type": "text",
+                "content": "ПРОВЕРКА ОРИГИНАЛЬНОСТИ "
+              }
+            ],
+            "size": "size4",
+            "align": "left",
+            "color": "color1"
+          },
+          "text": {
+            "size": "size3",
+            "align": "left",
+            "color": "color1",
+            "items": [
+              {
+                "type": "text",
+                "content": "Мы дорожим своей репутацией и гарантируем подлинность продаваемых часов! Это можно проверить на официальном сайте TISSOT в разделе Register Watch, выполнив несколько простых действий. Просто введите серийный номер с задней крышки часов и убедитесь в оригинальности модели."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "widgetName": "raShowcase",
+      "type": "billboard",
+      "blocks": [
+        {
+          "imgLink": "",
+          "img": {
+            "src": "https://cdn1.ozone.ru/s3/multimedia-1-w/8120708852.jpg",
+            "srcMobile": "https://cdn1.ozone.ru/s3/multimedia-1-7/8120709151.jpg",
+            "alt": "",
+            "position": "width_full",
+            "positionMobile": "width_full",
+            "widthMobile": 1080,
+            "heightMobile": 1080
+          },
+          "title": {
+            "items": [
+              {
+                "type": "text",
+                "content": "ГАРАНТИЯ 2 ГОДА И ОБСЛУЖИВАНИЕ"
+              }
+            ],
+            "size": "size4",
+            "align": "left",
+            "color": "color1"
+          },
+          "text": {
+            "size": "size3",
+            "align": "left",
+            "color": "color1",
+            "items": [
+              {
+                "type": "text",
+                "content": "Наши мастера аккредитованного сервисного центра предоставляют высокие стандарты постпродажного обслуживания в короткие и удобные для вас сроки. Все специалисты прошли базовое и специализированное обучение в ведущих учреждениях Москвы и Швейцарии. Работают только с оригинальными запчастями и сертифицированным швейцарским оборудованием."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "widgetName": "raTextBlock",
+      "title": {
+        "items": [
+          {
+            "type": "link",
+            "content": "Посмотреть все модели",
+            "href": "https://ozon.by/seller/tempus-naruchnye-chasy-2893807/brand/tissot-33087842/?miniapp=seller_2893807&opened=brand"
+          }
+        ],
+        "size": "size5",
+        "color": "color1",
+        "align": "center"
+      },
+      "theme": "default",
+      "padding": "type1",
+      "gapSize": "s",
+      "text": {
+        "size": "size3",
+        "align": "center",
+        "color": "color1",
+        "items": [
+          {
+            "type": "text",
+            "content": "Полный каталог часов Tissot ⬆️"
+          },
+          {
+            "type": "br"
+          }
+        ]
+      }
+    },
+    {
+      "widgetName": "raTextBlock",
+      "title": {
+        "items": [
+          {
+            "type": "link",
+            "content": "Женские часы TISSOT",
+            "href": "https://ozon.by/seller/tempus-naruchnye-chasy-2893807/zhenskie-aksessuary-17000/tissot-33087842/?miniapp=seller_2893807&opened=brand"
+          }
+        ],
+        "size": "size5",
+        "color": "color1",
+        "align": "center"
+      },
+      "theme": "default",
+      "padding": "type1",
+      "gapSize": "s",
+      "text": {
+        "size": "size3",
+        "align": "center",
+        "color": "color1",
+        "items": [
+          {
+            "type": "text",
+            "content": "Изящество и стиль ⬆️"
+          },
+          {
+            "type": "br"
+          }
+        ]
+      }
+    },
+    {
+      "widgetName": "raTextBlock",
+      "title": {
+        "items": [
+          {
+            "type": "link",
+            "content": "Мужские часы TISSOT",
+            "href": "https://ozon.by/seller/tempus-naruchnye-chasy-2893807/muzhskie-aksessuary-17063/tissot-33087842/?miniapp=seller_2893807&opened=brand"
+          }
+        ],
+        "size": "size5",
+        "color": "color1",
+        "align": "center"
+      },
+      "theme": "default",
+      "padding": "type1",
+      "gapSize": "s",
+      "text": {
+        "size": "size3",
+        "align": "center",
+        "color": "color1",
+        "items": [
+          {
+            "type": "text",
+            "content": "Статус и точность ⬆️"
+          },
+          {
+            "type": "br"
+          }
+        ]
+      }
+    },
+    {
+      "widgetName": "raTextBlock",
+      "title": {
+        "items": [
+          {
+            "type": "link",
+            "content": "🔥 Распродажа 🔥",
+            "href": "https://ozon.by/seller/tempus-naruchnye-chasy-2893807/muzhskie-aksessuary-17063/tissot-33087842/?is_promo=t&miniapp=seller_2893807&opened=brand"
+          }
+        ],
+        "size": "size5",
+        "color": "color1",
+        "align": "center"
+      },
+      "theme": "default",
+      "padding": "type1",
+      "gapSize": "s",
+      "text": {
+        "size": "size3",
+        "align": "center",
+        "color": "color1",
+        "items": [
+          {
+            "type": "text",
+            "content": "Выберите свои уникальные TISSOT по лучшим ценам ⬆️"
+          }
+        ]
+      }
+    },
+    {
+      "widgetName": "raTextBlock",
+      "title": {
+        "items": [],
+        "size": "size1",
+        "color": "color1"
+      },
+      "theme": "tertiary",
+      "padding": "type2",
+      "gapSize": "s",
+      "text": {
+        "size": "size4",
+        "align": "center",
+        "color": "color1",
+        "items": [
+          {
+            "type": "text",
+            "content": "Приобретая часы в "
+          },
+          {
+            "type": "link",
+            "content": "TEMPUS",
+            "href": "https://ozon.by/seller/tempus-naruchnye-chasy-2893807/muzhskie-aksessuary-17063/?miniapp=seller_2893807&opened=brand"
+          },
+          {
+            "type": "text",
+            "content": ", вы инвестируете в качество и долговечность.\r"
+          },
+          {
+            "type": "br"
+          },
+          {
+            "type": "text",
+            "content": "\r"
+          },
+          {
+            "type": "br"
+          },
+          {
+            "type": "text",
+            "content": "Приятных покупок!"
+          }
+        ]
+      }
+    }
+  ],
+  "version": 0.3
+}

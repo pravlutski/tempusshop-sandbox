@@ -1,0 +1,35 @@
+.search-stats {
+    padding: 20px;
+}
+.stats-filters {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+}
+.table th {
+    position: sticky;
+    top: 0;
+    background: #343a40;
+    color: white;
+}
+.product-example {
+    margin-bottom: 2px;
+    padding: 2px 5px;
+    background: #f8f9fa;
+    border-radius: 3px;
+}
+.alert {
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+}
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+.alert-info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}

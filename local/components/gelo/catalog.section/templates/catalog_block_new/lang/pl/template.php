@@ -1,0 +1,34 @@
+<?
+$MESS["CT_NAME_NOT_FOUND"] = "Nie znaleziono produktów";
+$MESS["CT_NAME_SHOW_ALL"] = "Pokaż wszystko";
+$MESS["CATALOG_VIEW_MORE"] = "Pokaż główne";
+$MESS["WŁAŚCIWOŚCI"] = "Charakterystyka";
+$MESS["CATALOG_READ_MORE"] = "Więcej szczegółów";
+$MESS["CATALOG_ADD"] = "Dodaj do koszyka";
+$MESS["CATALOG_WISH"] = "Odłóż";
+$MESS["CATALOG_WISH_OUT"] = "Oczekujące";
+$MESS["CATALOG_COMPARE"] = "Porównaj";
+$MESS["CATALOG_COMPARE_OUT"] = "W porównaniu";
+$MESS["CATALOG_ADDED"] = "W koszyku";
+$MESS["CATALOG_SUBSCRIBE"] = "Subskrybuj";
+$MESS["CATALOG_IN_SUBSCRIBE"] = "Anuluj subskrypcję";
+$MESS["CATALOG_ORDER"] = "Zamówienie";
+$MESS["WITHOUT_DISCOUNT"] = "Cena bez rabatu";
+$MESS["EMPTY_CATALOG_DESCR"] = "Katalog jest pusty";
+$MESS['CT_IS_AVAILABLE'] = "W magazynie";
+$MESS['DONT_AVAILABLE'] = "Brak w magazynie";
+$MESS["MANY_GOODS"] = "Wiele";
+$MESS["SUFFICIENT_GOODS"] = "Dość";
+$MESS["FEW_GOODS"] = "Niewiele";
+$MESS["NO_GOODS"] = "Na zamówienie";
+$MESS["MEASURE_DEFAULT"] = "szt.";
+$MESS["CATALOG_IN_CART"] = "W koszyku";
+$MESS["TITLE_QUANTITY"] = "szt.";
+$MESS["UNTIL_AKC"] = "Do końca promocji";
+$MESS["TITLE_QUANTITY_BLOCK"] = "Saldo";
+$MESS["CATALOG_ECONOMY"] = "Oszczędności";
+$MESS["SHOW_RATING"] = "Pokaż ocenę";
+$MESS["FAST_VIEW"] = "Szybki podgląd";
+$MESS['VOTES_RESULT'] = '# VALUE # ocena 5';
+$MESS['VOTES_RESULT_NONE'] = 'Brak ocen';
+?>

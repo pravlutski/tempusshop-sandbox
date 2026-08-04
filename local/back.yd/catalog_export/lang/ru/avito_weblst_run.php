@@ -1,0 +1,20 @@
+<?php
+$MESS['WEBLST_AVITO_CONDITION_NEW'] = 'Новое';
+$MESS['WEBLST_AVITO_CONDITION_NEW_CHILD'] = 'Новый';
+$MESS['WEBLST_AVITO_CONDITION_USE'] = 'Б/y';
+$MESS['WEBLST_AVITO_ADTYPE_SALE'] = 'Товар приобретен на продажу';
+$MESS['WEBLST_AVITO_ADTYPE_BRAND'] = 'Товар от производителя';
+$MESS['WEBLST_AVITO_CHILD_SHOES'] = 'Детская одежда и обувь';
+$MESS['WEBLST_AVITO_SHOES'] = 'Одежда, обувь, аксессуары';
+$MESS['WEBLST_AVITO_TOYS'] = 'Товары для детей и игрушки';
+$MESS['WEBLST_AVITO_CAT_VEL'] = 'Велосипеды';
+$MESS['WEBLST_AVITO_ZAP'] = 'Запчасти и аксессуары';
+$MESS['WEBLST_AVITO_MOTO'] = 'Мотоциклы и мототехника';
+$MESS['WEBLST_AVITO_SUBMOTO'] = 'Мотоциклы';
+$MESS['WEBLST_AVITO_TV'] = 'Телевизоры и проекторы';
+$MESS['WEBLST_AVITO_STROY'] = 'Стройматериалы';
+$MESS['WEBLST_AVITO_STROE'] = 'Готовые строения и срубы';
+$MESS['WEBLST_AVITO_SH'] = 'Лето;Летние;лето;Летние;
+зима;Зимние шипованные;Зима;Зимние шипованные;
+всесезонка;Всесезонные;';
+$MESS['CAT_WERBLST_MOTO'] = 'Мотоциклы и мототехника';

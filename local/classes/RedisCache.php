@@ -1,0 +1,1 @@
+/var/www/bitrix/data/www/tempus.ru/local/classes/RedisCache.php

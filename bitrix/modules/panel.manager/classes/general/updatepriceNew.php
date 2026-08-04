@@ -1,0 +1,841 @@
+<?
+class CPriceUpdateNew{
+
+	public $site_id = "";
+	private $priceID = "";
+	public $detail_item_log = "";
+	public $set_price_level = null;
+	public $CNT_PRICE_ALL = 0;
+	public $sendMail = true;
+	private $priceQuarantine;
+	private $db;
+	
+	function __construct($priceID = "RU"){
+		global $DB;
+		$this->priceID = $priceID;
+		$this->sendMail = true;
+		$this->db = $DB;
+		
+        $this->logger = new TsLogger("/updatePrice/");
+        $this->TsTriggers = new TsTriggers();
+		
+		switch($this->priceID){
+			case "RU":
+			
+				$this->round = -1;
+				$this->currency = "RUB";
+				$this->key_price = "price_ru";
+				$this->key_price_discount = "price_discount_ru";
+				$this->url = "https://tempusshop.ru";
+				$this->PRICE_TYPE_ID = 5;
+				
+				$this->OPTION_UPDATE = "UPDATE_PRICE_V1";
+				
+				$this->siteR = "s1";
+				
+				break;
+			case "BY":
+			
+				$this->round = -0;
+				$this->currency = "BYN";
+				$this->key_price = "price_by";
+				$this->key_price_discount = "price_discount_by";
+				$this->url = "https://tempus.by";
+				$this->PRICE_TYPE_ID = 2;
+				
+				$this->OPTION_UPDATE = "UPDATE_PRICE_BY";
+				
+				
+				$this->siteR = "s2";
+				
+				break;
+			case "PL":
+			
+				$this->round = 0;
+				$this->currency = "PLN";
+				$this->key_price = "price_pl";
+				$this->key_price_discount = "price_discount_pl";
+				$this->url = "https://tempusshop.pl";
+				$this->PRICE_TYPE_ID = 3;
+				
+				$this->OPTION_UPDATE = "UPDATE_PRICE_PL";
+				
+				$this->siteR = "s3";
+				
+				break;
+			case "YA":
+			
+				$this->round = -1;
+				$this->currency = "RUB";
+				$this->key_price = "price_ya";
+				$this->key_price_discount = "price_discount_ya";
+				$this->url = "https://tempusshop.ru";
+				$this->PRICE_TYPE_ID = 1;
+				
+				$this->OPTION_UPDATE = "UPDATE_PRICE_RU";
+				
+				$this->siteR = "s1";
+				
+				break;
+			case "OS":
+			
+				$this->round = -1;
+				$this->currency = "RUB";
+				$this->key_price = "price_os";
+				$this->key_price_discount = "price_os";
+				$this->url = "https://tempusshop.ru";
+				
+				$this->OPTION_UPDATE = "UPDATE_PRICE_V2";
+				
+				$this->siteR = "s1";
+				
+				break;
+			case "WB":
+			
+				$this->round = -1;
+				$this->currency = "RUB";
+				$this->key_price = "price_wb";
+				$this->key_price_discount = "price_wb";
+				$this->url = "https://tempusshop.ru";
+				
+				$this->OPTION_UPDATE = "UPDATE_PRICE_WB";
+				
+				$this->promo_per = (float)CProSet::getOption("CATALOG_PROMO_wb");
+				$this->sale_per = (float)CProSet::getOption("CATALOG_SALE_wb");
+				
+				$this->siteR = "s1";
+				
+				break;
+			default:
+				break;
+		}
+		
+		if(!$this->siteR) die("NO site");
+		$this->lowerPriceID = strtolower($this->priceID);
+		
+		$this->rev_min = COption::GetOptionString("panel.manager", "PRICEUPDATE_REV_MIN_{$this->priceID}");
+		$this->min_per = COption::GetOptionString("panel.manager", "PRICEUPDATE_MIN_PER_{$this->priceID}");
+		$this->max_per = COption::GetOptionString("panel.manager", "PRICEUPDATE_MAX_PER_{$this->priceID}");
+		$this->rrcRequired = COption::GetOptionString("panel.manager", "PRICELIST_REQUIRED_RRC_{$this->priceID}");
+		$this->priceMarketRequired = COption::GetOptionString("panel.manager", "PRICELIST_REQUIRED_MARKET_{$this->priceID}");
+				
+		$this->margin_platform_def = COption::GetOptionString("panel.manager", "PRICELIST_MARGIN_{$this->priceID}");
+		
+		$this->control_rrc = json_decode(CProSet::getOption("CONTROL_RRC"), true)[$this->priceID];
+
+		$this->arMargin = $this->getMarkup();
+		
+		$objSupplier = new CPanelSupplier;
+
+		foreach($objSupplier->getList() as $key => $arItem){
+			$this->arSuppName[$arItem["id"]] = $arItem["name"];
+		}
+		
+		$objBrand = new CPanelBrand;
+
+		foreach($objBrand->getList() as $key => $arItem){
+
+			$this->arBrandMargin[$arItem["id"]][$this->priceID] = $arItem["margin_{$this->lowerPriceID}"];
+
+		}
+		
+		
+	}
+	function setAllPrice(){
+		$this->logger->log("LOG", "Запуск для цены - " . $this->priceID);
+		CProSet::setOption($this->OPTION_UPDATE, 0);
+
+		if($this->rrcRequired === true && count_($this->control_rrc) <= 0) {
+			$this->logger->log("LOG", "Обновление цен. Отмена. Нет РРЦ. Цена - " . $this->priceID);
+			$this->TsTriggers->SetError(["Обновление цен. Отмена. Нет РРЦ. Цена - " . $this->priceID]);
+			$this->TsTriggers->SendTriggerErrors();
+			return false;
+		}
+
+		$page_size = 100;
+		
+		$arSettings = array(
+			"round" => $this->round,
+			"rate" => 1,
+			"currency" => $this->currency
+		);
+		$objPricelist = new CPanelPricelist;
+		$objSupplier = new CPanelSupplier;
+		$objCurrency = new CPanelCurrency;
+		
+		$arCurrency = $objCurrency->getDetail($this->currency);
+		//prent($arCurrency);
+		if($arCurrency){
+			$arSettings["rate"] = $arCurrency["rate"];
+		}
+
+		//$psFilter["article"] = array("9231/5361192");+
+		if($this->control_rrc)
+			$psFilter["brand_id"] = $this->control_rrc;
+			
+		$psFilter["price_id"] = $this->lowerPriceID;
+		$price = $objPricelist->getPriceByFilter($psFilter, false, false, "price asc");
+		
+		$arReserve = $this->getReserve();
+		$arQuarantine = $this->getQuarantine();
+		foreach($price as $key => &$arItem){
+			/*if(isset($arReserve[$arItem["model"]])){
+				if($arReserve[$arItem["model"]] >= $arItem["count"]){
+					$arItem["can_buy"] = false;
+					$arReserve[$arItem["model"]] -= $arItem["count"];
+				}else{
+					$arItem["can_buy"] = true;
+				}
+			}elseif(isset($arQuarantine[$arItem["model"]])){
+
+			}else{
+				$arItem["can_buy"] = true;
+			}*/
+			$arItem["can_buy"] = true;
+		}
+		unset($arItem);
+
+		$arArticle = array();//массив со всеми артикулами
+		$tmpPrice = $arPrice = array();//
+		foreach($price as $key => &$arItem){
+
+			if($arItem["model"] && $arItem["can_buy"] === true){
+				//$arItem["price"] = $arItem["price"] / $arSettings["rate"];
+				//$arItem["price"] = (float)round($arItem["price"], $arSettings["round"]);
+				
+				$arItem["price"] = (float) ($arItem["price"] / $arSettings["rate"]);
+				$arArticle[$arItem["model"]] = $arItem["model"];
+
+				if(isset($tmpPrice[$arItem["model"]])){
+					if($arItem["price"] < $tmpPrice[$arItem["model"]]["price"])
+						$tmpPrice[$arItem["model"]] = $arItem;
+				}else
+					$tmpPrice[$arItem["model"]] = $arItem;
+			}
+		}
+		unset($arItem);
+//prent($price);prent($tmpPrice);die;
+		if($this->priceID == "RU"){
+			/* ищем цену яндекса */
+			$tmp = $objPricelist->getYandexPriceByFilter(array("name" => $arArticle));
+		}elseif($this->priceID == "BY"){
+			
+			$arTmp = $arArticleAlt = array();
+			//сразу выбираем артикулы из свойства товара "Артикул Онлайнера" для подмены
+			$res = CIBlockElement::getList(array(), array('IBLOCK_ID' => CProSet::IB_CATALOG, "PROPERTY_CML2_ARTICLE" => $arArticle, "!PROPERTY_ARTICLE_ONLINER" => false),false, false,array("ID", "PROPERTY_CML2_ARTICLE", "PROPERTY_ARTICLE_ONLINER"));
+			while ($row = $res->getNext()) {
+				$arTmp[$row["PROPERTY_CML2_ARTICLE_VALUE"]] = $row["PROPERTY_ARTICLE_ONLINER_VALUE"];
+			}
+			foreach($arArticle as $article){
+				if($arTmp[$article]) $arArticleAlt[] = $arTmp[$article]; else $arArticleAlt[] = $article;
+			}
+			//prent($arArticleAlt);
+			$tmp2 = $objPricelist->getOnlinerPriceByFilter(array("model" => $arArticleAlt));
+			$tmp = array();
+			foreach($tmp2 as $key => $arItem){
+				if($name = array_search($arItem["name"], $arTmp)){
+					$tmp[$key] = array(
+						"name" => $name,
+						"minPrice" => $arItem["minPrice"],
+						"minPrice2" => $arItem["minPrice2"],
+						"minPrice3" => $arItem["minPrice3"],
+					);
+				}else{
+					$tmp[$key] = array(
+						"name" => $arItem["name"],
+						"minPrice" => $arItem["minPrice"],
+						"minPrice2" => $arItem["minPrice2"],
+						"minPrice3" => $arItem["minPrice3"],
+					);
+				}
+			}
+			//$tmp = $objPricelist->getOnlinerPriceByFilter(array("model" => $arArticle)); было только это
+		}elseif($this->priceID == "PL"){
+			/* ищем цену яндекса */
+			$tmp = $objPricelist->getCeneoPriceByFilter(array("name" => $arArticle));
+		}elseif($this->priceID == "WB"){
+			/* ищем цену яндекса */
+			$tmp = $objPricelist->getWbPriceByFilter(array("name" => $arArticle));
+		}
+		foreach($tmp as $arItem){
+			$arPricePlatform[$arItem["name"]] = $arItem;
+		}
+		
+		if($this->priceMarketRequired === true && count_($arPricePlatform) <= 0){
+			CProSet::setOption($this->OPTION_UPDATE, 0);
+			CLog::add2log(array("event" => "Y", "text" => "Цен конкурентов 0", "price_id" => $this->priceID));
+			
+			$this->logger->log("LOG", "Обновление цен. Отмена. Цен конкурентов 0. priceID - " . $this->priceID);
+			$this->TsTriggers->SetError(["Обновление цен. Отмена. Цен конкурентов 0. priceID - " . $this->priceID]);
+			$this->TsTriggers->SendTriggerErrors();
+				
+			return false;
+		}
+		
+		
+		$arCatalogPrice = $objPricelist->getCatalogPriceByFilter(array("model" => $arArticle));
+	
+		foreach($arCatalogPrice as  $key => $arItem){
+			$tmp = $tmpPrice[$arItem["model"]];
+			
+			$b_price = $arItem[$this->key_price_discount];
+
+			$b_full_price = $arItem[$this->key_price];
+
+			$price_platform1 = ($arPricePlatform[$arItem["model"]]["minPrice"] ? $arPricePlatform[$arItem["model"]]["minPrice"] : 0);
+			$price_platform2 = ($arPricePlatform[$arItem["model"]]["minPrice2"] ? $arPricePlatform[$arItem["model"]]["minPrice2"] : 0);
+			$price_platform3 = ($arPricePlatform[$arItem["model"]]["minPrice3"] ? $arPricePlatform[$arItem["model"]]["minPrice3"] : 0);
+			//if($_POST["price_competitors_act"] == "Y" && $price_platform === 0) continue;
+			$arPrice[] = array(
+				"id" => $tmp["id"],
+				"article" => $arItem["model"],
+				"detail_page_url" => $arItem["detail_page_url"],
+				"price" => $tmp["price"],
+				"supplier_id" => $tmp["supplier_id"],
+				"brand_id" => $tmp["brand_id"],
+				"b_id" => $arItem["product_id"],//ID битрикс
+				"b_sku_id" => $arItem["product_sku"],//SKU ID битрикс
+				"b_price" => $b_price,//цена битрикс
+				"b_price_full" => $b_full_price,
+				"price_platform1" => $price_platform1,
+				"price_platform2" => $price_platform2,
+				"price_platform3" => $price_platform3,
+				"price_timestamp" => $tmp["timestamp"],
+			);
+			//if($arItem["product_sku"]) prent($arItem);
+		}
+
+		//die;
+		//$arPrice = array_slice($arPrice, 0, 1000);
+		
+		$this->CNT_PRICE_ALL = count_($arPrice);
+		
+		//prent($arPrice);die;
+		$arItems = $arNoModify = array();
+		foreach($arPrice as $key => &$arItem){
+		
+			$new_price = $this->getNewPrice($arItem, 1);
+			//prent($new_price);die;
+			if($this->priceID == "WB"){
+				$new_price = $new_price * (100 / (100 - $this->sale_per)) * (100 / (100 - $this->promo_per));
+				if($new_price > 600000) $new_price = 0;
+			}
+			
+			$new_price = round($new_price, $this->round);
+			//prent($new_price);prent($arItem);die;
+			$arItem["b_price_full"] = round($arItem["b_price_full"], $this->round);
+			if($new_price >= 0 && $new_price != $arItem["b_price_full"]){
+				//пишим цену
+				$arItems[] = array(
+					"PRODUCT_ID" => $arItem["b_id"],
+					"PRODUCT_SKU_ID" => $arItem["b_sku_id"],
+					"ARTICLE" => $arItem["article"],
+					"PRICE" => $new_price,
+					
+					"PRICE_OLD" => $arItem["b_price"],
+					"PRICE_OLD_FULL" => $arItem["b_price_full"],
+					"DETAIL_PAGE_URL" => $arItem["detail_page_url"],
+					"DETAIL_ITEM_LOG" => $this->detail_item_log,
+					"SET_PRICE_LEVEL" => $this->set_price_level,
+				);
+				
+			}elseif($new_price){
+				$arNoModify[] = array(
+					"PRODUCT_ID" => $arItem["b_id"],
+					"PRODUCT_SKU_ID" => $arItem["b_sku_id"],
+					"DETAIL_ITEM_LOG" => $this->detail_item_log,
+					"SET_PRICE_LEVEL" => $this->set_price_level,
+				);
+				//prent($arItem,0,1);
+			}
+			CProSet::setOption($this->OPTION_UPDATE, round((($key + 1) / $this->CNT_PRICE_ALL) / 2 * 100, 2));
+		}
+		//prent($arItems);die;
+		unset($arItem);
+		
+	//$filename = "/userscripts/logs/aaaassssssssss.log";
+	//file_put_contents($filename, serialize($arItems), FILE_APPEND);
+		CProSet::setOption($this->OPTION_UPDATE, 50);
+		$this->setPrice($arItems, $arNoModify);
+		
+		$this->setQuarantine();
+		CProSet::setOption($this->OPTION_UPDATE, 100);
+		
+		$this->logger->log("LOG", "Конец обработки для Цен - " . $this->priceID);
+	}
+
+	function getMarkup(){
+		
+		$objAnalysis = new CPanelAnalysis;
+		$arProfile = $objAnalysis->getListByFilter(array("price_id" => $this->lowerPriceID));
+		
+		$arMargin = array();
+		foreach($arProfile as $key => $arItem){
+			$arMargin[$arItem["brand_id"]] = $arItem["settings"];
+		}
+		return $arMargin;
+	}
+	
+	function getItemMargin($brand_id){
+		
+		if(is_numeric($this->arBrandMargin[$brand_id][$this->priceID])){
+			return $this->arBrandMargin[$brand_id][$this->priceID];
+		}else{
+			return $this->margin_platform_def;
+		}
+		
+	}
+	
+	function getNewPrice($arItem, $level = 1){
+		$new_price = false;
+		$this->detail_item_log = "";
+		
+		$this->set_price_level = $level;
+		if($arItem["price_platform{$level}"] > 0){
+			
+			$this->margin_platform = $this->getItemMargin($arItem["brand_id"]);
+			
+			$tmp_price = $arItem["price_platform{$level}"] + $arItem["price_platform{$level}"] * $this->margin_platform / 100;
+				
+			$revenue_p = (($tmp_price - $arItem["price"]) / $arItem["price"]) * 100;
+			$revenue = $tmp_price - $arItem["price"];
+			
+			$min_per = $this->min_per;
+//
+			if($revenue > $this->rev_min && $revenue_p > $min_per && $revenue_p < $this->max_per){
+				$new_price = $tmp_price;
+
+				//подсчитываем цену без скидки для записи
+				if($this->priceID != "WB" && $this->priceID != "OS"){
+					
+					$new_price = $this->modifyPriceWithoutSale($arItem["b_id"], $new_price);
+				
+				}
+				
+				//prent($new_price);
+				$this->detail_item_log = "Установлена {$level} цена маркетплейса = " . $arItem["price_platform{$level}"] . "\r\n";
+				$this->detail_item_log .= "tmp_price = " . $arItem["price_platform{$level}"] . " + " . $arItem["price_platform{$level}"] . " * " . $this->margin_platform . " / 100 = " . $tmp_price . "\r\n";
+				$this->detail_item_log .= "revenue_p = ((" . $tmp_price . " - " . $arItem["price"] . ") / " . $arItem["price"] . ") * 100 = " . $revenue_p . "\r\n";
+				$this->detail_item_log .= "revenue = " . $tmp_price . " - " . $arItem["price"] . " = " . $revenue . "\r\n";
+				$this->detail_item_log .= "Мин. по прайсу - {$arItem["price"]} ({$this->arSuppName[$arItem["supplier_id"]]} - {$arItem["price_timestamp"]})" . "\r\n";
+
+				if($this->priceID == "RU" || $this->priceID == "BY"){
+					//если новая цена без скидки больше чем на $this->max_per процентов от закупочной то РРЦ
+					$revenue_p2 = (($new_price - $arItem["price"]) / $arItem["price"]) * 100;
+
+					if($revenue_p2 > $this->max_per){
+						$level++;
+						if($arItem["price_platform{$level}"] && $arItem["price_platform{$level}"] > 0) {
+							$new_price = $this->getNewPrice($arItem, $level);
+							
+						}else{
+							$this->detail_item_log = "Установлена ({$level},1) ({$this->arSuppName[$arItem["supplier_id"]]}) - {$arItem["price"]}";
+							$new_price = $this->getOptimalPrice($arItem["brand_id"], $arItem["price"], $arItem["b_id"]);
+							
+							$this->set_price_level = -1;
+						}
+					}else{
+						
+					}
+				}
+
+			}else{
+				$level++;
+				if($arItem["price_platform{$level}"] && $arItem["price_platform{$level}"] > 0){
+					$new_price = $this->getNewPrice($arItem, $level);
+				}else{
+					$this->detail_item_log = "Установлена ({$level},2) ({$this->arSuppName[$arItem["supplier_id"]]}) - {$arItem["price"]}";
+					$new_price = $this->getOptimalPrice($arItem["brand_id"], $arItem["price"], $arItem["b_id"]);
+					//prent($new_price);
+					$this->set_price_level = -1;
+				}
+			}
+
+		}else{
+			$this->detail_item_log = "Установлена ({$level},3) ({$this->arSuppName[$arItem["supplier_id"]]}) - {$arItem["price"]}";
+			$new_price = $this->getOptimalPrice($arItem["brand_id"], $arItem["price"], $arItem["b_id"]);
+			
+			$this->set_price_level = -1;
+		}
+
+		return $new_price;
+	}
+	
+	function modifyPriceWithoutSale($ID = false, $price = false){
+		if(!$ID || !$price > 0) return false;
+
+		$ar = AHCatalog::OnGetOptimalPrice($ID, 1, array(), "N", array(), $this->site_id);
+		if(isset($ar["DISCOUNT"]["VALUE_TYPE"]) && $ar["DISCOUNT"]["VALUE_TYPE"] == "P"){
+			$discount_per = $ar["DISCOUNT"]["VALUE"] / 100;
+
+			//цена без скидки
+			//$price = $price + $price * $discount_per;
+			$price = $price / (1 - $discount_per);
+			$price = round($price, $this->round);
+		}
+		return $price;
+	}
+	
+	function getOptimalPrice($brand_id = 0, $price = false, $productID = false){
+		if(!$brand_id || !$price) return false;
+		
+		$markup = 1;
+		if($this->arMargin[$brand_id]){
+			$profile["settings"] = json_decode($this->arMargin[$brand_id], true);
+			foreach($profile["settings"] as $key => $arItem){
+				if($price >= $arItem["price_from"] && $price <= $arItem["price_to"] && $arItem["markup"] > 0)
+					$markup = (float)$arItem["markup"];
+			}
+		}
+		
+		$price = $price * $markup;
+		return $price;
+		
+	}
+
+	function setPrice($arItems = array(), $arNoModify = array()){
+		//if(count($arItems) <= 0) return false;
+		global $DB;
+		//AddMessage2Log($arItems);
+		//
+		$this->CNT_PRICE = count_($arItems);
+		$this->CNT_PRICE_MOD = 0;
+		
+		$arLog = array();
+		$_el = new CIBlockElement;
+		
+		$this->logger->log("LOG", "Количество товаров " . $this->CNT_PRICE);
+		
+		foreach($arItems as $key => $arItem){
+
+			$text = "";
+			$isNewPrice = false;
+			/* если простой товар */
+			if($arItem["PRODUCT_SKU_ID"] == false && $this->priceID != "WB" && $this->priceID != "OS"){
+				$arFilter = array(
+					"IBLOCK_ID" => CProSet::IB_CATALOG,
+					"ID" => $arItem["PRODUCT_ID"]
+				);
+				
+				$res = CIBlockElement::GetList(array(), $arFilter, false, false, array("ID", "ACTIVE"));
+				if ($el = $res->GetNext()){
+
+					$arFields = Array(
+						"PRODUCT_ID" => $el["ID"],
+						"CATALOG_GROUP_ID" => $this->PRICE_TYPE_ID,
+						"PRICE" => $arItem["PRICE"],
+						"CURRENCY" => $this->currency,
+					);
+					$p_res = CPrice::GetList(
+						array(),
+						array(
+							"PRODUCT_ID" => $el["ID"],
+							"CATALOG_GROUP_ID" => $this->PRICE_TYPE_ID
+						)
+					);
+
+					if ($arr = $p_res->Fetch()){
+						//if($arItem["PRICE_OLD"] != $arItem["PRICE"])
+						//	$text = "<a href='".$this->url."".$arItem["DETAIL_PAGE_URL"]."' target='_blank'>" . $arItem["ARTICLE"] . "</a> " . $arItem["PRICE_OLD"] . " >> ";
+						CPrice::Update($arr["ID"], $arFields);
+					}else{
+						//$text = "<a href='".$this->url."".$arItem["DETAIL_PAGE_URL"]."' target='_blank'>" . $arItem["ARTICLE"] . "</a> " . $arItem["PRICE_OLD"] . " (добавлена) >> ";
+						$isNewPrice = true;
+						CPrice::Add($arFields);
+					}
+					
+					CExchange::updateProduct($el["ID"]);
+					
+					//обновляем данные во временной таблице
+					$strSql = "SELECT * FROM ci_price_catalog WHERE product_id = '{$el["ID"]}'";
+					$results = $DB->Query($strSql, false, $err_mess.__LINE__);
+					if ($row = $results->Fetch()){
+						
+						$ar = AHCatalog::OnGetOptimalPrice($el["ID"], 1, array(), "N", array(), $this->site_id);
+						
+						$b_price = CCurrencyRates::ConvertCurrency($ar["PRICE"]["PRICE"], $ar["PRICE"]["CURRENCY"], $this->currency);
+						$b_price = round($b_price, 0);
+						$b_price_dis = CCurrencyRates::ConvertCurrency($ar["RESULT_PRICE"]["DISCOUNT_PRICE"], $ar["RESULT_PRICE"]["CURRENCY"], $this->currency);
+						$b_price_dis = round($b_price_dis, 0);
+						$in = array(
+							"{$this->key_price}" => $b_price,
+							"{$this->key_price_discount}" => $b_price_dis,
+							"set_price_{$this->lowerPriceID}" => $arItem["SET_PRICE_LEVEL"],
+							"timestamp" => "'".date("Y-m-d H:i:s")."'",
+						);
+						$DB->Update("ci_price_catalog", $in, "WHERE id='".$row["id"]."'", $err_mess.__LINE__);
+						//обновляем элемент чтоб сработали все события
+						//$rs = $_el->Update($el["ID"], array("ACTIVE" => $el["ACTIVE"]));
+						//$arFields = array("ID" => $el["ID"], "IBLOCK_ID" => 16);
+						//TsIblock::setPropAvailable($arFields);
+				
+						//if(round($arItem["PRICE_OLD"], 2) != round($b_price_dis, 2)){
+							$this->CNT_PRICE_MOD++;
+							$text = "<a href='".$this->url."".$arItem["DETAIL_PAGE_URL"]."' target='_blank'>" . $arItem["ARTICLE"] . "</a> " . $arItem["PRICE_OLD"] . ($isNewPrice === true ? " (добавлена)" : "") . " >> " . $b_price_dis;
+						//}
+					}else{
+						//if(round($arItem["PRICE_OLD"], 2) != round($arItem["PRICE"], 2)){
+							$this->CNT_PRICE_MOD++;
+							$text = "<a href='".$this->url."".$arItem["DETAIL_PAGE_URL"]."' target='_blank'>" . $arItem["ARTICLE"] . "</a> " . $arItem["PRICE_OLD"] . ($isNewPrice === true ? " (добавлена)" : "") . " >> " . $arItem["PRICE"];
+						//}
+					}
+					
+				}else{
+					$text = "Товар с ID - " . $arItem["PRODUCT_ID"] . " не найден";
+				}
+			}elseif($this->priceID == "WB"){
+				CIBlockElement::SetPropertyValuesEx($arItem["PRODUCT_ID"], false, array("WBPRICE" => ($arItem["PRICE"] > 0 ? $arItem["PRICE"] : false)));
+				
+				$this->CNT_PRICE_MOD++;
+				
+				//обновляем данные во временной таблице
+				$in = array(
+					"price_wb" => $arItem["PRICE"],
+				);
+
+				$DB->Update("ci_price_catalog", $in, "WHERE product_id='".$arItem["PRODUCT_ID"]."'", $err_mess.__LINE__);
+				
+				$pr1 = $arItem["PRICE_OLD"] / 100 * (100 - $this->sale_per) / (100 / (100 - $this->promo_per));
+				$pr2 = $arItem["PRICE"] / 100 * (100 - $this->sale_per) / (100 / (100 - $this->promo_per));
+
+				$text = "<a href='".$this->url."".$arItem["DETAIL_PAGE_URL"]."' target='_blank'>" . $arItem["ARTICLE"] . "</a> " . $pr1 . " >> " . $pr2;
+
+			}elseif($this->priceID == "OS"){
+				CIBlockElement::SetPropertyValuesEx($arItem["PRODUCT_ID"], false, array("OZSB_PRICE" => ($arItem["PRICE"] > 0 ? $arItem["PRICE"] : false)));
+				
+				$this->CNT_PRICE_MOD++;
+				
+				//обновляем данные во временной таблице
+				$in = array(
+					"price_os" => $arItem["PRICE"],
+				);
+
+				$DB->Update("ci_price_catalog", $in, "WHERE product_id='".$arItem["PRODUCT_ID"]."'", $err_mess.__LINE__);
+
+				$text = "<a href='".$this->url."".$arItem["DETAIL_PAGE_URL"]."' target='_blank'>" . $arItem["ARTICLE"] . "</a> " . $arItem["PRICE_OLD"] . " >> " . $arItem["PRICE"];
+			}
+			
+			if(strlen($text) > 0){
+				CLog::add2log(array("event" => "UI", "text" => $text, "price_id" => $this->priceID, "detail" => $arItem["DETAIL_ITEM_LOG"]));
+				$arLog[] = $text;
+				$this->logger->log("LOG", $text);
+			}
+			
+			CProSet::setOption($this->OPTION_UPDATE, round(50 + (($key + 1) / $this->CNT_PRICE) / 2 * 100, 2));
+			
+			// смотрим надо ли добавлять товар в карантин
+			if($isNewPrice === false && $arItem["PRICE_OLD"] > 0 && $arItem["PRICE"] > 0){
+				$f = false;
+				
+				if($arItem["PRICE_OLD"] > $arItem["PRICE"] && ($arItem["PRICE_OLD"] / $arItem["PRICE"]) >= 2){
+					$f = true;
+				}
+				
+				if($f){
+					$this->priceQuarantine[] = [
+						"PRODUCT_ID" => $arItem["PRODUCT_ID"],
+						"ARTICLE" => $arItem["ARTICLE"],
+						"PRICE_ID" => $this->priceID,
+						"PRICE" => round($arItem["PRICE"], 2),
+						"PRICE_OLD" => round($arItem["PRICE_OLD"], 2),
+					];
+				}
+
+			}
+			
+			//удаляем папки с композитом 
+			clearDirCompositeCache($arItem["DETAIL_PAGE_URL"]);
+
+		}
+		
+		// op comment 02-07-2020.
+//		$cache_manager = Bitrix\Main\Application::getInstance()->getTaggedCache();
+//		$cache_manager->ClearByTag("iblock_id_".CProSet::IB_CATALOG);
+
+		//if(count($arLog) > 0){
+		if($this->sendMail === true){
+			//отсылаем письмо
+			$message = "<p>Обновление цен конкурентов '" . $this->priceID . "'</p>";
+			foreach($arLog as $text){
+				$message .= "<p>" . $text . "</p>";
+			}
+			$arFields = array(
+				"SUBJECT" => "Обновление цен " . $this->priceID . ". " . $this->CNT_PRICE_MOD . " из " . $this->CNT_PRICE_ALL . " элементов.",
+				"MESSAGE" => $message,
+			);
+			CEvent::SendImmediate("IM_NEW_MESSAGE", array("s1"), $arFields, "N", 405);
+			//CEvent::Send("IM_NEW_MESSAGE", "s1", $arFields, "N");
+		}
+		$this->logger->log("LOG", "Обновление цен " . $this->priceID . ". " . $this->CNT_PRICE_MOD . " из " . $this->CNT_PRICE_ALL . " элементов.");
+	}
+	
+	//установка РРЦ для моделей $arItems
+	function setOptimalPrice($arItems = array()){
+		if(count_($arItems) <= 0) return false;
+		$arSettings = array(
+			"round" => $this->round,
+			"rate" => 1,
+			"currency" => $this->currency
+		);
+		$objPricelist = new CPanelPricelist;
+		$objSupplier = new CPanelSupplier;
+		$objCurrency = new CPanelCurrency;
+		
+		$arCurrency = $objCurrency->getDetail($this->currency);
+		//prent($arCurrency);
+		if($arCurrency){
+			$arSettings["rate"] = $arCurrency["rate"];
+		}
+		
+		//$psFilter["article"] = array("MTS-100GL-7A");
+
+		$psFilter["price_id"] = $this->priceID;
+		$psFilter["article"] = $arItems;
+//		prent($psFilter);die;
+		$price = $objPricelist->getPriceByFilter($psFilter);
+
+		$arArticle = array();//массив со всеми артикулами
+		$tmpPrice = $arPrice = array();//
+		foreach($price as $key => &$arItem){
+
+			if($arItem["model"]){
+				//$arItem["price"] = $arItem["price"] / $arSettings["rate"];
+				//$arItem["price"] = (float)round($arItem["price"], $arSettings["round"]);
+				
+				$arItem["price"] = (float) ($arItem["price"] / $arSettings["rate"]);
+				$arArticle[$arItem["model"]] = $arItem["model"];
+
+				if(isset($tmpPrice[$arItem["model"]])){
+					if($arItem["price"] < $tmpPrice[$arItem["model"]]["price"])
+						$tmpPrice[$arItem["model"]] = $arItem;
+				}else
+					$tmpPrice[$arItem["model"]] = $arItem;
+			}
+		}
+		unset($arItem);
+			
+		$arCatalogPrice = $objPricelist->getCatalogPriceByFilter(array("model" => $arArticle));
+
+		foreach($arCatalogPrice as  $key => $arItem){
+			$tmp = $tmpPrice[$arItem["model"]];
+			
+			$b_price = $arItem[$this->key_price_discount];
+
+			$b_full_price = $arItem[$this->key_price];
+
+			//if($_POST["price_competitors_act"] == "Y" && $price_platform === 0) continue;
+			$arPrice[] = array(
+				"id" => $tmp["id"],
+				"article" => $arItem["model"],
+				"detail_page_url" => $arItem["detail_page_url"],
+				"price" => $tmp["price"],
+				"supplier_id" => $tmp["supplier_id"],
+				"brand_id" => $tmp["brand_id"],
+				"b_id" => $arItem["product_id"],//ID битрикс
+				"b_sku_id" => $arItem["product_sku"],//SKU ID битрикс
+				"b_price" => $b_price,//цена битрикс
+				"b_price_full" => $b_full_price,
+				"price_timestamp" => $tmp["timestamp"],
+			);
+			//if($arItem["product_sku"]) prent($arItem);
+		}
+		
+		//die;
+		//$arPrice = array_slice($arPrice, 0, 1000);
+		
+		$this->CNT_PRICE_ALL = count_($arPrice);
+		
+		
+		$arItems = $arNoModify = array();
+		foreach($arPrice as $key => &$arItem){
+		
+			$new_price = $this->getNewPrice($arItem, 1);
+			$new_price = round($new_price, $this->round);
+			$arItem["b_price_full"] = round($arItem["b_price_full"], $this->round);
+			if($new_price && $new_price != $arItem["b_price_full"]){
+				//пишим цену
+				$arItems[] = array(
+					"PRODUCT_ID" => $arItem["b_id"],
+					"PRODUCT_SKU_ID" => $arItem["b_sku_id"],
+					"ARTICLE" => $arItem["article"],
+					"PRICE" => $new_price,
+					
+					"PRICE_OLD" => $arItem["b_price"],
+					"PRICE_OLD_FULL" => $arItem["b_price_full"],
+					"DETAIL_PAGE_URL" => $arItem["detail_page_url"],
+					"DETAIL_ITEM_LOG" => $this->detail_item_log,
+					"SET_PRICE_LEVEL" => $this->set_price_level,
+				);
+				
+			}elseif($new_price){
+				$arNoModify[] = array(
+					"PRODUCT_ID" => $arItem["b_id"],
+					"PRODUCT_SKU_ID" => $arItem["b_sku_id"],
+					"DETAIL_ITEM_LOG" => $this->detail_item_log,
+					"SET_PRICE_LEVEL" => $this->set_price_level,
+				);
+				//prent($arItem,0,1);
+			}
+
+		}
+		//prent($arNoModify);die;
+		unset($arItem);
+		//prent($arItems);
+		$this->setPrice($arItems, $arNoModify);
+	}
+
+	// пишим товары, если есть в карантин
+	function setQuarantine(){
+		if(!$this->priceQuarantine || count_($this->priceQuarantine) <= 0) return false;
+		$this->logger->log("LOG", "Есть товары в карантине", $this->priceQuarantine);
+		foreach($this->priceQuarantine as $key => $arItem){
+			
+			$strSql = "SELECT ID FROM ci_price_quarantine WHERE PRODUCT_ID  = '{$arItem["PRODUCT_ID"]}' AND PRICE_ID = '{$arItem["PRICE_ID"]}'";
+			
+			$in = array(
+				"PRODUCT_ID" => "'".$arItem["PRODUCT_ID"]."'",
+				"ARTICLE" => "'".$arItem["ARTICLE"]."'",
+				"PRICE_ID" => "'".$arItem["PRICE_ID"]."'",
+				"PRICE" => "'".$arItem["PRICE"]."'",
+				"PRICE_OLD" => "'".$arItem["PRICE_OLD"]."'",
+			);
+			
+			$results = $this->db->Query($strSql, false, $err_mess.__LINE__);
+			if ($row = $results->Fetch()){
+				$this->logger->log("LOG", "update");
+				$this->db->Update("ci_price_quarantine", $in, "WHERE ID='".$row["ID"]."'", $err_mess.__LINE__);
+			}else{
+				$this->logger->log("LOG", "add");
+				$this->db->Insert("ci_price_quarantine", $in, $err_mess.__LINE__);
+			}
+			$this->logger->log("LOG", "Карантин", $in);
+		}
+	}
+	
+	//доставем все резервы
+	function getReserve(){
+		global $DB;
+		$strSql = "SELECT ARTICLE as ARTICLE, RESERVED_{$this->siteR} as RESERVED FROM ci_reserved WHERE RESERVED_{$this->siteR} > 0";
+					
+		$results = $DB->Query($strSql, false, $err_mess.__LINE__);
+		while ($row = $results->Fetch()){
+			$arReserve[$row["ARTICLE"]] = $row["RESERVED"];
+		}
+		return $arReserve;
+	}
+	function getQuarantine(){
+		global $DB;
+
+		$strSql = "SELECT ARTICLE FROM ci_price_quarantine WHERE PRICE_ID = '{$this->priceID}'";
+
+		$results = $DB->Query($strSql, false, $err_mess.__LINE__);
+		while ($row = $results->Fetch()){
+			$arQuarantine[$row["ARTICLE"]] = true;
+		}
+
+		return $arQuarantine;
+	}
+
+}
+
+?>
