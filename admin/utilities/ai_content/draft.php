@@ -88,6 +88,7 @@ function render(res){
 	html += '<div class="ai-muted">status: '+esc(t.status)+' / match: '+esc(t.match_status)+'</div>';
 	if (t.error_text) html += '<div class="ai-note">'+esc(t.error_text)+'</div>';
 	html += '</div><div>';
+	html += '<button id="btn-refresh-photos" class="btn btn-warning">Доискать фото</button> ';
 	html += '<button id="btn-save" class="btn btn-default">Сохранить</button> ';
 	html += '<button id="btn-publish" class="btn btn-success"'+(t.status==='published'?' disabled':'')+'>Создать на сайте</button>';
 	html += '</div></div></div>';
