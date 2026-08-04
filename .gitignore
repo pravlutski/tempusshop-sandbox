@@ -60,3 +60,6 @@
 **/lucky-kayak-*.json
 **/*f8d3ebf315cb*.json
 admin/settings/bq_exchange/credentials/
+
+# AI content utility secrets
+admin/utilities/ai_content/credentials/
