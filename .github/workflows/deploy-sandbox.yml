@@ -1,0 +1,118 @@
+name: Deploy to sandbox.tempusshop.ru
+on:
+  push:
+    branches:
+      - 'andrey-**'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy (e.g. andrey-xxx)'
+        required: true
+        type: string
+jobs:
+  deploy:
+    name: Deploy to sandbox.tempusshop.ru
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve branch name
+        id: branch
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ inputs.branch }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Log deployment start
+        run: |
+          echo "========================================"
+          echo "Sandbox deployment started at $(date)"
+          echo "========================================"
+          echo "Branch: ${{ steps.branch.outputs.name }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Author: ${{ github.event.head_commit.author.name }}"
+          echo "Message: ${{ github.event.head_commit.message }}"
+          echo "========================================"
+      - name: Deploy to sandbox.tempusshop.ru
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -euo pipefail
+            BRANCH="${{ steps.branch.outputs.name }}"
+            DEPLOY_DIR="/mnt/new_disk/bitrix/sandbox.tempusshop.ru"
+            LOG_DIR="/var/www/bitrix_logs/git/tempusshop-sandbox"
+            mkdir -p "$LOG_DIR"
+            LOG_FILE="$LOG_DIR/deploy-$(date +%Y%m%d).log"
+            exec 1> >(tee -a "$LOG_FILE")
+            exec 2>&1
+            log() {
+              echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+            }
+            case "$BRANCH" in
+              andrey-*)
+                ;;
+              *)
+                log "ERROR: Branch '$BRANCH' does not match andrey-*"
+                exit 1
+                ;;
+            esac
+            log "Starting sandbox update for branch: $BRANCH"
+            cd "$DEPLOY_DIR" || {
+              log "ERROR: directory not found: $DEPLOY_DIR"
+              exit 1
+            }
+            log "Current directory: $(pwd)"
+            log "Current user: $(whoami)"
+            UPLOAD_LINK=""
+            if [ -L upload ]; then
+              UPLOAD_LINK=$(readlink upload)
+              log "Preserving upload symlink: $UPLOAD_LINK"
+            fi
+            BEFORE=$(git rev-parse --short HEAD 2>/dev/null || echo "none")
+            log "Current version: $BEFORE"
+            log "Fetching origin..."
+            git fetch --prune origin
+            if ! git rev-parse --verify "origin/$BRANCH" >/dev/null 2>&1; then
+              log "ERROR: Remote branch origin/$BRANCH not found"
+              exit 1
+            fi
+            log "Checking out origin/$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            # Keep ignored Bitrix core / upload / configs
+            git clean -fd
+            if [ -n "$UPLOAD_LINK" ] && [ ! -e upload ]; then
+              log "Restoring upload symlink -> $UPLOAD_LINK"
+              ln -s "$UPLOAD_LINK" upload
+            fi
+            if [ ! -f bitrix/header.php ]; then
+              log "ERROR: bitrix/header.php missing after deploy. Restore Bitrix core in $DEPLOY_DIR/bitrix"
+              exit 1
+            fi
+            if [ ! -d bitrix/modules/panel.manager ]; then
+              log "ERROR: bitrix/modules/panel.manager missing after deploy"
+              exit 1
+            fi
+            AFTER=$(git rev-parse --short HEAD)
+            log "New version: $AFTER"
+            log "Active branch: $(git branch --show-current)"
+            if [ "$BEFORE" != "$AFTER" ] && [ "$BEFORE" != "none" ]; then
+              log "Changed commits:"
+              git log --oneline --pretty=format:"  - %h %s" "$BEFORE..$AFTER" | while read -r line; do log "$line"; done
+            fi
+            log "Sandbox deployment completed successfully"
+      - name: Check site availability
+        if: success()
+        run: |
+          echo "Checking sandbox availability..."
+          sleep 5
+          CODE=$(curl -k -s -o /dev/null -w "%{http_code}" https://sandbox.tempusshop.ru/ || true)
+          echo "HTTP status: $CODE"
+          # 401 expected if basic auth is enabled
+          if echo "$CODE" | grep -qE '200|301|302|401'; then
+            echo "Site responds ($CODE)"
+          else
+            echo "Site check returned $CODE — verify manually"
+          fi
