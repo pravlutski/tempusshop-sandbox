@@ -38,10 +38,38 @@ if (trim((string)$cfg['proxy']) === '') {
 	AiContentBootstrap::jsonResponse(['ok' => false, 'error' => 'Укажите прокси — без него OpenAI из РФ/BY недоступен'], 400);
 }
 
-try {
-	$client = new OpenAiClient($cfg);
-	$result = $client->ping();
-	AiContentBootstrap::jsonResponse($result);
-} catch (Throwable $e) {
-	AiContentBootstrap::jsonResponse(['ok' => false, 'error' => $e->getMessage()], 500);
+@set_time_limit(45);
+
+$typesToTry = [];
+$requested = AiContentConfig::normalizeProxyType((string)$cfg['proxy_type']);
+$typesToTry[] = $requested;
+// Vendors often label HTTP proxies as "SOCKS5". If SOCKS hangs/fails — try HTTP.
+foreach (['http', 'socks5h', 'socks5'] as $alt) {
+	if (!in_array($alt, $typesToTry, true)) {
+		$typesToTry[] = $alt;
+	}
 }
+
+$errors = [];
+foreach ($typesToTry as $type) {
+	try {
+		$tryCfg = $cfg;
+		$tryCfg['proxy_type'] = $type;
+		$client = new OpenAiClient($tryCfg);
+		$result = $client->ping();
+		$result['tried_type'] = $type;
+		$result['requested_type'] = $requested;
+		if ($type !== $requested) {
+			$result['note'] = "Тип '{$requested}' не сработал, автоматически подошёл '{$type}'. Сохрани settings с type={$type}.";
+		}
+		AiContentBootstrap::jsonResponse($result);
+	} catch (Throwable $e) {
+		$errors[] = $type . ': ' . $e->getMessage();
+		// continue to next type
+	}
+}
+
+AiContentBootstrap::jsonResponse([
+	'ok' => false,
+	'error' => implode(' || ', $errors),
+], 500);

@@ -48,16 +48,16 @@ if (class_exists('COption')) {
 			<label>Proxy (обязательно для sandbox в BY/RU)</label>
 			<input type="text" id="proxy" class="form-control" value="<?php echo htmlspecialchars($currentProxy); ?>" placeholder="user:pass@host:port">
 			<small class="ai-muted">
-				SOCKS5 пример: <code>user:pass@46.x.x.x:1887</code> + type <code>socks5</code>
-				(внутри принудительно socks5h — DNS тоже через прокси)
+				Формат: <code>user:pass@host:port</code>.
+				Если провайдер пишет SOCKS5, а проверка висит — часто это на самом деле <strong>HTTP</strong>.
 			</small>
 		</div>
 		<div class="ai-row">
 			<label>Proxy type</label>
 			<select id="proxy_type" class="form-control">
 				<?php
-				$types = array('socks5','socks5h','http','https');
-				$selectedType = in_array($currentProxyType, array('socks5','socks5h'), true) ? $currentProxyType : ($currentProxy !== '' ? $currentProxyType : 'socks5');
+				$types = array('http','socks5','socks5h','https');
+				$selectedType = $currentProxyType !== '' ? $currentProxyType : 'http';
 				foreach ($types as $t):
 				?>
 					<option value="<?php echo $t; ?>" <?php echo $selectedType === $t ? 'selected' : ''; ?>><?php echo $t; ?></option>
@@ -97,17 +97,28 @@ $('#btn-save-settings').on('click', function(){
 });
 
 $('#btn-test-proxy').on('click', function(){
-	showResult(true, 'проверка…');
-	$.post(ajax_path + 'testProxy.php', {
-		api_key: $('#api_key').val(),
-		model: $('#model').val(),
-		proxy: $('#proxy').val(),
-		proxy_type: $('#proxy_type').val()
+	showResult(true, 'проверка… (до ~40 сек, пробует http/socks)');
+	$.ajax({
+		url: ajax_path + 'testProxy.php',
+		method: 'POST',
+		timeout: 45000,
+		data: {
+			api_key: $('#api_key').val(),
+			model: $('#model').val(),
+			proxy: $('#proxy').val(),
+			proxy_type: $('#proxy_type').val()
+		}
 	}).done(function(res){
 		if (typeof res === 'string') try { res = JSON.parse(res); } catch(e) {}
 		if (!res.ok) { showResult(false, res.error || 'fail'); return; }
-		showResult(true, 'OK HTTP ' + res.http_code + ' | exit_ip=' + (res.exit_ip||'?') + ' | proxy=' + (res.proxy_host||'') + ' (' + (res.proxy_type||'') + ')');
-	}).fail(function(xhr){
+		let msg = 'OK HTTP ' + res.http_code + ' | exit_ip=' + (res.exit_ip||'?') + ' | proxy=' + (res.proxy_host||'') + ' (' + (res.proxy_type||res.tried_type||'') + ')';
+		if (res.note) msg += ' | ' + res.note;
+		showResult(true, msg);
+	}).fail(function(xhr, status){
+		if (status === 'timeout') {
+			showResult(false, 'Таймаут 45с. Поставь type=http и сохрани — этот прокси скорее HTTP, не SOCKS5.');
+			return;
+		}
 		let msg = 'fail';
 		try { const j = JSON.parse(xhr.responseText); if (j.error) msg = j.error; } catch(e) {}
 		showResult(false, msg);
