@@ -135,11 +135,14 @@ function render(res){
 		const source = (ph && ph.source) ? ph.source : '';
 		const checked = selectedSet[url] ? ' checked' : '';
 		const preview = ajax_path + 'imgProxy.php?u=' + encodeURIComponent(url);
+		const debugUrl = preview + '&debug=1';
 		html += '<label class="ai-photo">';
 		html += '<input type="checkbox" class="photo-check" value="'+esc(url)+'"'+checked+'>';
-		html += '<img src="'+esc(preview)+'" data-orig="'+esc(url)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.classList.add(\'broken\'); this.insertAdjacentHTML(\'afterend\', \'<small class=ai-muted>не загрузилось</small>\');">';
+		html += '<img src="'+esc(preview)+'" data-orig="'+esc(url)+'" data-preview="'+esc(preview)+'" alt="" loading="lazy" referrerpolicy="no-referrer">';
 		html += '<span>'+esc(source||('#'+(idx+1)))+'</span>';
-		html += '<a class="ai-src" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">открыть оригинал</a>';
+		html += '<a class="ai-src" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">открыть оригинал</a> · ';
+		html += '<a class="ai-src ai-img-debug" href="'+esc(debugUrl)+'" target="_blank" rel="noopener">debug</a>';
+		html += '<div class="ai-img-err ai-muted" style="display:none"></div>';
 		html += '</label>';
 	});
 	if (!(d.photos||[]).length) {
@@ -174,6 +177,28 @@ function load(){
 			$('#draft-root').text('Не удалось загрузить черновик');
 		});
 }
+
+$(document).on('error', '.ai-photo img', function(){
+	const $img = $(this);
+	const $box = $img.closest('.ai-photo');
+	const orig = $img.data('orig');
+	if (!$img.data('tried-orig') && orig) {
+		$img.data('tried-orig', 1);
+		$img.attr('referrerpolicy', 'no-referrer');
+		$img.attr('src', orig);
+		return;
+	}
+	$img.addClass('broken');
+	const $err = $box.find('.ai-img-err').show().text('не загрузилось, жми debug');
+	const debugUrl = ($img.data('preview') || '') + '&debug=1';
+	if (debugUrl) {
+		$.getJSON(debugUrl).done(function(j){
+			$err.text((j && j.error) ? j.error : JSON.stringify(j));
+		}).fail(function(xhr){
+			$err.text('debug HTTP ' + xhr.status + ': ' + (xhr.responseText || '').slice(0, 180));
+		});
+	}
+});
 
 $(document).on('click', '#btn-add-photo', function(){
 	const url =($.trim($('#manual_photo_url').val() || ''));
