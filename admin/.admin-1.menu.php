@@ -63,12 +63,5 @@ $aMenuLinks = Array(
 	    Array(),
 	    "\$USER->isAdmin()"
 	),
-	Array(
-		"Документация",
-		"/admin/documentation/",
-		Array(),
-		Array(),
-		"in_array(\"6\",\$USER->GetUserGroupArray())||in_array(\"7\",\$USER->GetUserGroupArray())||in_array(\"13\",\$USER->GetUserGroupArray())||in_array(\"18\",\$USER->GetUserGroupArray())||in_array(\"19\",\$USER->GetUserGroupArray())||in_array(\"21\",\$USER->GetUserGroupArray())||\$USER->isAdmin()"
-	)
 );
 ?>
