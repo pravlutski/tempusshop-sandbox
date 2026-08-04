@@ -315,16 +315,25 @@ PROMPT;
 
 		if (count($valid) < 2) {
 			$this->repo->log($taskId, 'Photo re-search started');
-			$extra = $this->researchPhotosOnly($task, array_column($photos, 'url'));
-			if ($extra) {
-				$merged = array_merge($valid, $fetcher->filterValidPhotos($extra, 12));
-				// unique by url
-				$by = [];
-				foreach ($merged as $ph) {
-					$by[$ph['url']] = $ph;
+			try {
+				$failedUrls = [];
+				foreach ($photos as $ph) {
+					if (is_array($ph) && !empty($ph['url'])) {
+						$failedUrls[] = (string)$ph['url'];
+					}
 				}
-				$valid = array_values($by);
-				$this->repo->log($taskId, 'Photo re-search done', ['valid' => count($valid)]);
+				$extra = $this->researchPhotosOnly($task, $failedUrls);
+				if ($extra) {
+					$merged = array_merge($valid, $fetcher->filterValidPhotos($extra, 12));
+					$by = [];
+					foreach ($merged as $ph) {
+						$by[$ph['url']] = $ph;
+					}
+					$valid = array_values($by);
+					$this->repo->log($taskId, 'Photo re-search done', ['valid' => count($valid)]);
+				}
+			} catch (Throwable $e) {
+				$this->repo->log($taskId, 'Photo re-search skipped', ['error' => $e->getMessage()], 'error');
 			}
 		}
 
@@ -351,7 +360,7 @@ PROMPT;
 			'props' => json_decode((string)$draftRow['props_json'], true) ?: [],
 			'fields' => json_decode((string)$draftRow['fields_json'], true) ?: [],
 			'detail_text' => (string)$draftRow['detail_text'],
-			'detail_text_type' => (string)$draftRow['detail_text_type'],
+			'detail_text_type' => (string)($draftRow['detail_text_type'] ?: 'html'),
 			'photos' => json_decode((string)$draftRow['photos_json'], true) ?: [],
 			'selected_photos' => json_decode((string)$draftRow['selected_photos_json'], true) ?: [],
 			'sources' => json_decode((string)$draftRow['sources_json'], true) ?: [],
@@ -360,19 +369,63 @@ PROMPT;
 			'raw_ai' => json_decode((string)$draftRow['raw_ai_json'], true),
 		];
 
-		$extra = $this->researchPhotosOnly($task, array_column($draft['photos'], 'url'));
+		$failed = [];
+		foreach ($draft['photos'] as $ph) {
+			if (is_array($ph) && !empty($ph['url'])) {
+				$failed[] = (string)$ph['url'];
+			} elseif (is_string($ph)) {
+				$failed[] = $ph;
+			}
+		}
+
+		$aiError = null;
+		try {
+			$extra = $this->researchPhotosOnly($task, $failed);
+		} catch (Throwable $e) {
+			$aiError = $e->getMessage();
+			$extra = [];
+			$this->repo->log($taskId, 'Photo re-search AI error', ['error' => $aiError], 'error');
+		}
+
 		if ($extra) {
 			$draft['photos'] = array_merge($draft['photos'], $extra);
 		}
-		$draft = $this->validateAndEnrichPhotos($taskId, $task, $draft);
+
+		// Validate once (do not trigger nested AI search again)
+		$fetcher = new AiContentImageFetcher();
+		$before = count($draft['photos']);
+		$valid = $fetcher->filterValidPhotos($draft['photos'], 12);
+		$this->repo->log($taskId, 'Photo refresh validation', [
+			'before' => $before,
+			'ai_extra' => count($extra),
+			'after' => count($valid),
+			'ai_error' => $aiError,
+		]);
+
+		$draft['photos'] = $valid;
+		$draft['selected_photos'] = array_slice(array_map(static function ($ph) {
+			return !empty($ph['local_url']) ? $ph['local_url'] : $ph['url'];
+		}, $valid), 0, 6);
+
 		$this->repo->upsertDraft($taskId, $draft);
 		$this->repo->updateTask($taskId, [
 			'status' => 'needs_review',
-			'error_text' => 'Фото обновлены: ' . count($draft['photos']) . ' шт.',
+			'error_text' => count($valid)
+				? ('Фото обновлены: ' . count($valid) . ' шт.')
+				: ('Рабочих фото нет' . ($aiError ? ('. AI: ' . $aiError) : '. Попробуй другие источники / вставь URL вручную')),
 		]);
+
+		if (!$valid && $aiError) {
+			throw new RuntimeException('AI поиск фото: ' . $aiError);
+		}
+		if (!$valid) {
+			throw new RuntimeException('AI вернул ссылки, но ни одна не скачалась как картинка. Вставь URL вручную или повтори позже.');
+		}
+
 		return [
 			'ok' => true,
-			'photos' => count($draft['photos']),
+			'photos' => count($valid),
+			'ai_extra' => count($extra),
 		];
 	}
 
@@ -385,26 +438,22 @@ Use web_search. Return ONLY JSON:
 Rules:
 - URLs must be direct image files that return image/* (jpg/png/webp).
 - Do NOT return HTML product pages or URLs that redirect to homepages.
-- Prefer seikoboutique.eu, official brand media CDNs, large EU retailers.
+- Prefer large EU/US retailers and brand media CDNs with stable hotlinkable images.
 - Avoid seikoboutique.co.uk/_images paths that redirect to seikowatches.com.
+- Avoid URLs that require login.
 - 6-12 photos of the exact model.
 PROMPT;
 		$user = json_encode([
-			'brand' => $task['brand_name'],
-			'article' => $task['article'],
+			'brand' => $task['brand_name'] ?? '',
+			'article' => $task['article'] ?? '',
 			'failed_urls_do_not_repeat' => array_values(array_filter($failedUrls)),
-			'hint' => 'Search product pages and extract real <img src> / og:image / CDN links.',
+			'hint' => 'Open product pages and extract real image CDN links (og:image, gallery src).',
 		], JSON_UNESCAPED_UNICODE);
 
-		try {
-			$result = $this->client->researchJson($system, $user);
-		} catch (Throwable $e) {
-			$this->repo->log((int)$task['id'], 'Photo re-search failed', ['error' => $e->getMessage()], 'error');
-			return [];
-		}
+		$result = $this->client->researchJson($system, $user);
 		$json = $result['json'] ?? null;
 		if (!is_array($json)) {
-			return [];
+			throw new RuntimeException('Модель не вернула JSON с photos. Raw: ' . mb_substr((string)($result['text'] ?? ''), 0, 300));
 		}
 		$photos = [];
 		foreach ((array)($json['photos'] ?? []) as $ph) {
@@ -420,6 +469,9 @@ PROMPT;
 				'source' => is_array($ph) ? (string)($ph['source'] ?? 'retailer') : 'retailer',
 				'rank' => is_array($ph) ? (int)($ph['rank'] ?? 50) : 50,
 			];
+		}
+		if (!$photos) {
+			throw new RuntimeException('AI не нашёл ни одного photo URL');
 		}
 		return $photos;
 	}

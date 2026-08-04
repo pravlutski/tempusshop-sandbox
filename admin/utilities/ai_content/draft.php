@@ -222,16 +222,25 @@ $(document).on('click', '#btn-refresh-photos', function(){
 	$.ajax({
 		url: ajax_path + 'refreshPhotos.php',
 		method: 'POST',
-		timeout: 200000,
+		timeout: 180000,
+		dataType: 'json',
 		data: {task_id: taskId}
 	}).done(function(res){
 		if (typeof res === 'string') try { res = JSON.parse(res); } catch(e) {}
-		if (!res.ok) { alert(res.error || 'Ошибка'); return; }
+		if (!res || !res.ok) { alert((res && res.error) ? res.error : 'Ошибка'); return; }
 		alert('Найдено рабочих фото: ' + res.photos);
 		load();
-	}).fail(function(xhr){
+	}).fail(function(xhr, status){
 		let msg = 'Ошибка поиска фото';
-		try { const j = JSON.parse(xhr.responseText); if (j.error) msg = j.error; } catch(e) {}
+		if (status === 'timeout') msg = 'Таймаут 180с — AI/прокси слишком долго отвечали. Повтори ещё раз.';
+		else {
+			try {
+				const j = (xhr.responseJSON || JSON.parse(xhr.responseText));
+				if (j && j.error) msg = j.error;
+			} catch(e) {
+				if (xhr.responseText) msg += ': ' + String(xhr.responseText).slice(0, 240);
+			}
+		}
 		alert(msg);
 	}).always(function(){
 		$btn.prop('disabled', false).text('Доискать фото');
