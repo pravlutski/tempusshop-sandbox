@@ -14,17 +14,40 @@ require_once __DIR__ . '/classes/AiContentBootstrap.php';
 AiContentBootstrap::init();
 
 $repo = new AiContentRepository();
-$repo->ensureSchema();
-$reg = $repo->registerUtility();
+$schemaOk = true;
+$schemaError = '';
+try {
+	$repo->ensureSchema();
+} catch (Throwable $e) {
+	$schemaOk = false;
+	$schemaError = $e->getMessage();
+}
+$reg = ['created' => false, 'id' => 0, 'skipped' => true, 'reason' => 'schema failed'];
+try {
+	$reg = $repo->registerUtility();
+} catch (Throwable $e) {
+	$reg = ['created' => false, 'id' => 0, 'skipped' => true, 'reason' => $e->getMessage()];
+}
 
 $msg = '';
+$err = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid()) {
 	$key = trim((string)($_POST['api_key'] ?? ''));
 	$model = trim((string)($_POST['model'] ?? 'gpt-4.1'));
 	if ($key !== '') {
-		AiContentConfig::save($key, $model ?: 'gpt-4.1');
-		$msg = 'OpenAI ключ сохранён в настройках Bitrix (переживает git deploy).';
-		$repo->log(null, 'OpenAI key saved via install');
+		try {
+			AiContentConfig::save($key, $model ?: 'gpt-4.1');
+			$msg = 'OpenAI ключ сохранён в настройках Bitrix (переживает git deploy).';
+			try {
+				$repo->log(null, 'OpenAI key saved via install');
+			} catch (Throwable $e) {
+				// logging is optional during first install
+			}
+		} catch (Throwable $e) {
+			$err = 'Не удалось сохранить ключ: ' . $e->getMessage();
+		}
+	} else {
+		$err = 'Вставьте API key';
 	}
 }
 
@@ -37,11 +60,15 @@ if (class_exists('COption')) {
 <div style="max-width:720px;margin:20px 0;">
 	<h2>Установка AI наполнения контента</h2>
 	<? if ($msg): ?><p style="color:green"><?= htmlspecialchars($msg) ?></p><? endif; ?>
+	<? if ($err): ?><p style="color:red"><?= htmlspecialchars($err) ?></p><? endif; ?>
+	<? if (!$schemaOk): ?><p style="color:red">Schema: <?= htmlspecialchars($schemaError) ?></p><? endif; ?>
 
-	<p>Таблицы <code>ai_content_task</code>, <code>ai_content_draft</code>, <code>ai_content_log</code> созданы/проверены.</p>
+	<p>Таблицы AI-утилиты и (при необходимости) <code>admin_utilities_*</code> созданы/проверены.</p>
 	<p>
 		Утилита в списке:
-		<? if ($reg['created']): ?>
+		<? if (!empty($reg['skipped'])): ?>
+			<strong>пропущена</strong> (<?= htmlspecialchars((string)($reg['reason'] ?? 'n/a')) ?>) — можно пользоваться по прямой ссылке
+		<? elseif ($reg['created']): ?>
 			<strong>добавлена</strong> (id <?= (int)$reg['id'] ?>)
 		<? else: ?>
 			<strong>уже была</strong> (id <?= (int)$reg['id'] ?>)

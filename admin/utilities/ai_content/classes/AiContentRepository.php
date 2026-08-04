@@ -59,6 +59,68 @@ class AiContentRepository
 				KEY task_id (task_id)
 			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 		", true);
+
+		// Sandbox may miss utility registry tables that exist on prod.
+		$this->ensureUtilityRegistryTables();
+	}
+
+	public function tableExists(string $table): bool
+	{
+		global $DB;
+		$table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+		try {
+			$rs = $DB->Query("SHOW TABLES LIKE '" . $DB->ForSql($table) . "'", true);
+			return $rs && (bool)$rs->Fetch();
+		} catch (Throwable $e) {
+			return false;
+		}
+	}
+
+	public function ensureUtilityRegistryTables(): void
+	{
+		global $DB;
+
+		$DB->Query("
+			CREATE TABLE IF NOT EXISTS admin_utilities_groups (
+				id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				name VARCHAR(255) NOT NULL DEFAULT '',
+				PRIMARY KEY (id)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+		", true);
+
+		$DB->Query("
+			CREATE TABLE IF NOT EXISTS admin_utilities_list (
+				id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				name VARCHAR(255) NOT NULL DEFAULT '',
+				link VARCHAR(512) NOT NULL DEFAULT '',
+				group_id INT UNSIGNED NOT NULL DEFAULT 0,
+				PRIMARY KEY (id),
+				KEY link (link(191)),
+				KEY group_id (group_id)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+		", true);
+
+		$DB->Query("
+			CREATE TABLE IF NOT EXISTS admin_utilities_access (
+				id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+				utility_id INT UNSIGNED NOT NULL,
+				user_group_id INT UNSIGNED NOT NULL,
+				PRIMARY KEY (id),
+				KEY utility_id (utility_id),
+				KEY user_group_id (user_group_id)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+		", true);
+
+		try {
+			$rs = $DB->Query("SELECT id FROM admin_utilities_groups LIMIT 1", true);
+			if (!$rs || !$rs->Fetch()) {
+				$DB->Insert('admin_utilities_groups', [
+					'name' => "'" . $DB->ForSql('Контент') . "'",
+				]);
+			}
+		} catch (Throwable $e) {
+			// ignore — registration will soft-fail
+		}
 	}
 
 	public function registerUtility(): array
@@ -67,25 +129,39 @@ class AiContentRepository
 		$link = '/admin/utilities/ai_content/';
 		$name = 'AI наполнение контента';
 
-		$rs = $DB->Query("SELECT id FROM admin_utilities_list WHERE link = '" . $DB->ForSql($link) . "' LIMIT 1");
-		if ($row = $rs->Fetch()) {
-			return ['created' => false, 'id' => (int)$row['id']];
+		try {
+			$this->ensureUtilityRegistryTables();
+
+			if (!$this->tableExists('admin_utilities_list')) {
+				return ['created' => false, 'id' => 0, 'skipped' => true, 'reason' => 'admin_utilities_list unavailable'];
+			}
+
+			$rs = $DB->Query("SELECT id FROM admin_utilities_list WHERE link = '" . $DB->ForSql($link) . "' LIMIT 1", true);
+			if ($rs && ($row = $rs->Fetch())) {
+				return ['created' => false, 'id' => (int)$row['id']];
+			}
+
+			$groupId = 0;
+			$gr = $DB->Query("SELECT id FROM admin_utilities_groups ORDER BY id ASC LIMIT 1", true);
+			if ($gr && ($g = $gr->Fetch())) {
+				$groupId = (int)$g['id'];
+			}
+
+			$id = (int)$DB->Insert('admin_utilities_list', [
+				'name' => "'" . $DB->ForSql($name) . "'",
+				'link' => "'" . $DB->ForSql($link) . "'",
+				'group_id' => "'" . $groupId . "'",
+			]);
+
+			return ['created' => true, 'id' => $id];
+		} catch (Throwable $e) {
+			return [
+				'created' => false,
+				'id' => 0,
+				'skipped' => true,
+				'reason' => $e->getMessage(),
+			];
 		}
-
-		$groupId = 0;
-		$gr = $DB->Query("SELECT id FROM admin_utilities_groups ORDER BY id ASC LIMIT 1");
-		if ($g = $gr->Fetch()) {
-			$groupId = (int)$g['id'];
-		}
-
-		$id = (int)$DB->Insert('admin_utilities_list', [
-			'name' => "'" . $DB->ForSql($name) . "'",
-			'link' => "'" . $DB->ForSql($link) . "'",
-			'group_id' => "'" . $groupId . "'",
-		]);
-
-		// Admins always pass AccessValidator; empty ACL also allows.
-		return ['created' => true, 'id' => $id];
 	}
 
 	public function log(?int $taskId, string $message, array $context = [], string $level = 'info'): void

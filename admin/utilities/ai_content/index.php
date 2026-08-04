@@ -4,11 +4,11 @@ if (!CModule::IncludeModule('panel.manager')) {
 	return;
 }
 $APPLICATION->SetTitle('AI наполнение контента');
-AccessValidator::checkIfAllowed();
 
 require_once __DIR__ . '/classes/AiContentBootstrap.php';
 AiContentBootstrap::init();
 (new AiContentRepository())->ensureSchema();
+AiContentAccess::guard();
 
 $content = new CPanelContent();
 $brands = $content->getBrands();

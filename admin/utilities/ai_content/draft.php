@@ -4,11 +4,11 @@ if (!CModule::IncludeModule('panel.manager')) {
 	return;
 }
 $APPLICATION->SetTitle('AI черновик');
-AccessValidator::checkIfAllowed();
 
 require_once __DIR__ . '/classes/AiContentBootstrap.php';
 AiContentBootstrap::init();
 (new AiContentRepository())->ensureSchema();
+AiContentAccess::guard();
 
 $taskId = (int)($_GET['id'] ?? 0);
 if ($taskId <= 0) {
