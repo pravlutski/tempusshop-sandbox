@@ -335,6 +335,22 @@ PROMPT;
 			} catch (Throwable $e) {
 				$this->repo->log($taskId, 'Photo re-search skipped', ['error' => $e->getMessage()], 'error');
 			}
+			if (count($valid) < 2) {
+				try {
+					$finder = new AiContentPhotoFinder($fetcher);
+					$found = $finder->find((string)$task['brand_name'], (string)$task['article'], 10);
+					if ($found) {
+						$by = [];
+						foreach (array_merge($valid, $found) as $ph) {
+							$by[$ph['url']] = $ph;
+						}
+						$valid = array_values($by);
+						$this->repo->log($taskId, 'PhotoFinder after research', ['valid' => count($valid)]);
+					}
+				} catch (Throwable $e) {
+					$this->repo->log($taskId, 'PhotoFinder after research failed', ['error' => $e->getMessage()], 'error');
+				}
+			}
 		}
 
 		$draft['photos'] = $valid;
@@ -379,11 +395,11 @@ PROMPT;
 		}
 
 		$aiError = null;
+		$extra = [];
 		try {
 			$extra = $this->researchPhotosOnly($task, $failed);
 		} catch (Throwable $e) {
 			$aiError = $e->getMessage();
-			$extra = [];
 			$this->repo->log($taskId, 'Photo re-search AI error', ['error' => $aiError], 'error');
 		}
 
@@ -391,13 +407,34 @@ PROMPT;
 			$draft['photos'] = array_merge($draft['photos'], $extra);
 		}
 
-		// Validate once (do not trigger nested AI search again)
 		$fetcher = new AiContentImageFetcher();
 		$before = count($draft['photos']);
 		$valid = $fetcher->filterValidPhotos($draft['photos'], 12);
+
+		// DDG + page scrape fallback (works for Shopify/Jomashop CDNs)
+		$finderCount = 0;
+		if (count($valid) < 2) {
+			try {
+				$finder = new AiContentPhotoFinder($fetcher);
+				$found = $finder->find((string)$task['brand_name'], (string)$task['article'], 10);
+				$finderCount = count($found);
+				if ($found) {
+					$by = [];
+					foreach (array_merge($valid, $found) as $ph) {
+						$by[$ph['url']] = $ph;
+					}
+					$valid = array_values($by);
+				}
+				$this->repo->log($taskId, 'PhotoFinder fallback', ['found' => $finderCount, 'valid' => count($valid)]);
+			} catch (Throwable $e) {
+				$this->repo->log($taskId, 'PhotoFinder error', ['error' => $e->getMessage()], 'error');
+			}
+		}
+
 		$this->repo->log($taskId, 'Photo refresh validation', [
 			'before' => $before,
 			'ai_extra' => count($extra),
+			'finder' => $finderCount,
 			'after' => count($valid),
 			'ai_error' => $aiError,
 		]);
@@ -412,20 +449,23 @@ PROMPT;
 			'status' => 'needs_review',
 			'error_text' => count($valid)
 				? ('Фото обновлены: ' . count($valid) . ' шт.')
-				: ('Рабочих фото нет' . ($aiError ? ('. AI: ' . $aiError) : '. Попробуй другие источники / вставь URL вручную')),
+				: ('Рабочих фото нет' . ($aiError ? ('. AI: ' . $aiError) : '')),
 		]);
 
-		if (!$valid && $aiError) {
-			throw new RuntimeException('AI поиск фото: ' . $aiError);
-		}
 		if (!$valid) {
-			throw new RuntimeException('AI вернул ссылки, но ни одна не скачалась как картинка. Вставь URL вручную или повтори позже.');
+			$msg = 'Не удалось скачать фото (CDN режет).';
+			if ($aiError) {
+				$msg .= ' AI: ' . $aiError;
+			}
+			$msg .= ' Попробуй ещё раз или вставь URL вручную (лучше cdn.shopify.com / jomashop).';
+			throw new RuntimeException($msg);
 		}
 
 		return [
 			'ok' => true,
 			'photos' => count($valid),
 			'ai_extra' => count($extra),
+			'finder' => $finderCount,
 		];
 	}
 
@@ -438,8 +478,9 @@ Use web_search. Return ONLY JSON:
 Rules:
 - URLs must be direct image files that return image/* (jpg/png/webp).
 - Do NOT return HTML product pages or URLs that redirect to homepages.
-- Prefer large EU/US retailers and brand media CDNs with stable hotlinkable images.
-- Avoid seikoboutique.co.uk/_images paths that redirect to seikowatches.com.
+- Prefer hotlinkable CDNs: cdn.shopify.com, cdn2.jomashop.com, m.media-amazon.com.
+- Also return product page URLs from jomashop / shopify stores (we will extract images).
+- Avoid seikoboutique.co.uk/_images (redirects to homepage) and bot-protected boutique.eu images.
 - Avoid URLs that require login.
 - 6-12 photos of the exact model.
 PROMPT;
