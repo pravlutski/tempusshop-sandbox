@@ -4,12 +4,16 @@ class OpenAiClient
 {
 	private string $apiKey;
 	private string $model;
+	private string $proxy;
+	private string $proxyType;
 
 	public function __construct(?array $config = null)
 	{
 		$config = $config ?: AiContentConfig::get();
 		$this->apiKey = $config['api_key'];
 		$this->model = $config['model'];
+		$this->proxy = (string)($config['proxy'] ?? '');
+		$this->proxyType = AiContentConfig::normalizeProxyType((string)($config['proxy_type'] ?? 'http'));
 	}
 
 	/**
@@ -50,10 +54,46 @@ class OpenAiClient
 		];
 	}
 
+	/** Lightweight connectivity check */
+	public function ping(): array
+	{
+		$ch = curl_init('https://api.openai.com/v1/models');
+		$opts = [
+			CURLOPT_HTTPGET => true,
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_HTTPHEADER => [
+				'Authorization: Bearer ' . $this->apiKey,
+			],
+			CURLOPT_TIMEOUT => 45,
+		];
+		$this->applyProxy($opts);
+		curl_setopt_array($ch, $opts);
+		$response = curl_exec($ch);
+		$errno = curl_errno($ch);
+		$error = curl_error($ch);
+		$code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		curl_close($ch);
+
+		if ($errno) {
+			throw new RuntimeException('Proxy/curl error: ' . $error);
+		}
+		$decoded = json_decode((string)$response, true);
+		if ($code >= 400) {
+			$msg = is_array($decoded) ? ($decoded['error']['message'] ?? ('HTTP ' . $code)) : ('HTTP ' . $code);
+			throw new RuntimeException('OpenAI API error: ' . $msg);
+		}
+		return [
+			'ok' => true,
+			'http_code' => $code,
+			'proxy' => $this->proxy !== '',
+			'proxy_type' => $this->proxyType,
+		];
+	}
+
 	private function request(string $url, array $body): array
 	{
 		$ch = curl_init($url);
-		curl_setopt_array($ch, [
+		$opts = [
 			CURLOPT_POST => true,
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_HTTPHEADER => [
@@ -62,7 +102,9 @@ class OpenAiClient
 			],
 			CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE),
 			CURLOPT_TIMEOUT => 180,
-		]);
+		];
+		$this->applyProxy($opts);
+		curl_setopt_array($ch, $opts);
 		$response = curl_exec($ch);
 		$errno = curl_errno($ch);
 		$error = curl_error($ch);
@@ -81,6 +123,35 @@ class OpenAiClient
 			throw new RuntimeException('OpenAI API error: ' . $msg);
 		}
 		return $decoded;
+	}
+
+	private function applyProxy(array &$opts): void
+	{
+		$parsed = AiContentConfig::parseProxy($this->proxy, $this->proxyType);
+		if (!$parsed) {
+			return;
+		}
+
+		$opts[CURLOPT_PROXY] = $parsed['hostport'];
+		$opts[CURLOPT_PROXYTYPE] = $parsed['type'];
+		$opts[CURLOPT_HTTPPROXYTUNNEL] = true;
+		$opts[CURLOPT_PROXYAUTH] = CURLAUTH_ANY;
+		$opts[CURLOPT_SSL_VERIFYPEER] = true;
+		$opts[CURLOPT_SSL_VERIFYHOST] = 2;
+
+		if (!empty($parsed['userpwd'])) {
+			$opts[CURLOPT_PROXYUSERPWD] = $parsed['userpwd'];
+		}
+
+		// Some corporate HTTPS proxies need relaxed proxy TLS checks
+		if (($parsed['type_name'] ?? '') === 'https') {
+			if (defined('CURLOPT_PROXY_SSL_VERIFYPEER')) {
+				$opts[CURLOPT_PROXY_SSL_VERIFYPEER] = false;
+			}
+			if (defined('CURLOPT_PROXY_SSL_VERIFYHOST')) {
+				$opts[CURLOPT_PROXY_SSL_VERIFYHOST] = 0;
+			}
+		}
 	}
 
 	private function extractOutputText(array $raw): string
