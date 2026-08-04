@@ -31,6 +31,23 @@ class AiContentPublisher
 		$manual = (string)($input['manual_url'] ?? '');
 		$video = (string)($input['video_url'] ?? '');
 
+		// Merge manually added selected URLs into candidates list
+		$byUrl = [];
+		foreach ($existingPhotos as $ph) {
+			$u = is_array($ph) ? (string)($ph['url'] ?? '') : (string)$ph;
+			if ($u !== '') {
+				$byUrl[$u] = is_array($ph) ? $ph : ['url' => $u, 'source' => 'other', 'rank' => 99];
+			}
+		}
+		foreach ($selected as $u) {
+			$u = trim((string)$u);
+			if ($u === '' || isset($byUrl[$u])) {
+				continue;
+			}
+			$byUrl[$u] = ['url' => $u, 'source' => 'manual', 'rank' => 50];
+		}
+		$existingPhotos = array_values($byUrl);
+
 		$fields = [
 			'brand' => (int)$task['brand_id'],
 			'collection' => $collectionId,

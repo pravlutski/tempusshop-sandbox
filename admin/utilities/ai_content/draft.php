@@ -127,19 +127,30 @@ function render(res){
 	html += '</div>'; // grid
 
 	html += '<div class="ai-card"><h3>Фото (выберите минимум 1, лучше 5–6)</h3>';
+	html += '<p class="ai-muted">Превью через серверный proxy (оригинальные URL сохраняются для публикации).</p>';
 	html += '<div class="ai-photos">';
 	(d.photos||[]).forEach(function(ph, idx){
-		const url = ph.url || ph;
-		const source = ph.source || '';
+		const url = (ph && ph.url) ? ph.url : ph;
+		if (!url) return;
+		const source = (ph && ph.source) ? ph.source : '';
 		const checked = selectedSet[url] ? ' checked' : '';
+		const preview = ajax_path + 'imgProxy.php?u=' + encodeURIComponent(url);
 		html += '<label class="ai-photo">';
 		html += '<input type="checkbox" class="photo-check" value="'+esc(url)+'"'+checked+'>';
-		html += '<img src="'+esc(url)+'" alt="" loading="lazy" onerror="this.style.opacity=.2">';
+		html += '<img src="'+esc(preview)+'" data-orig="'+esc(url)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.classList.add(\'broken\'); this.insertAdjacentHTML(\'afterend\', \'<small class=ai-muted>не загрузилось</small>\');">';
 		html += '<span>'+esc(source||('#'+(idx+1)))+'</span>';
+		html += '<a class="ai-src" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">открыть оригинал</a>';
 		html += '</label>';
 	});
-	if (!(d.photos||[]).length) html += '<p class="ai-muted">Нет кандидатов фото</p>';
-	html += '</div></div>';
+	if (!(d.photos||[]).length) {
+		html += '<p class="ai-muted">Нет кандидатов фото. Можно вставить URL вручную ниже и отметить.</p>';
+	}
+	html += '</div>';
+	html += '<div class="ai-row" style="margin-top:12px"><label>Добавить URL фото вручную</label>';
+	html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+	html += '<input id="manual_photo_url" class="form-control" style="flex:1;min-width:240px" placeholder="https://...jpg">';
+	html += '<button type="button" id="btn-add-photo" class="btn btn-default">Добавить</button>';
+	html += '</div></div></div>';
 
 	html += '<div class="ai-card"><h3>Лог</h3><div class="ai-log">';
 	(res.logs||[]).forEach(function(l){
@@ -163,6 +174,20 @@ function load(){
 			$('#draft-root').text('Не удалось загрузить черновик');
 		});
 }
+
+$(document).on('click', '#btn-add-photo', function(){
+	const url =($.trim($('#manual_photo_url').val() || ''));
+	if (!url) return;
+	const preview = ajax_path + 'imgProxy.php?u=' + encodeURIComponent(url);
+	const html = '<label class="ai-photo">'
+		+ '<input type="checkbox" class="photo-check" value="'+esc(url)+'" checked>'
+		+ '<img src="'+esc(preview)+'" alt="" loading="lazy" referrerpolicy="no-referrer">'
+		+ '<span>manual</span>'
+		+ '<a class="ai-src" href="'+esc(url)+'" target="_blank" rel="noopener">открыть оригинал</a>'
+		+ '</label>';
+	$('.ai-photos').append(html);
+	$('#manual_photo_url').val('');
+});
 
 $(document).on('click', '#btn-save', function(){
 	const payload = collectPayload();

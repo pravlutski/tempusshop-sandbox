@@ -215,20 +215,33 @@ PROMPT;
 
 		$photos = [];
 		foreach ((array)($json['photos'] ?? []) as $ph) {
-			if (!is_array($ph)) {
-				continue;
+			$url = '';
+			$source = 'other';
+			$rank = 99;
+			$watermark = false;
+			if (is_string($ph)) {
+				$url = trim($ph);
+			} elseif (is_array($ph)) {
+				$url = trim((string)($ph['url'] ?? $ph['src'] ?? $ph['image'] ?? $ph['link'] ?? ''));
+				$source = (string)($ph['source'] ?? 'other');
+				$rank = (int)($ph['rank'] ?? 99);
+				$watermark = !empty($ph['has_watermark_suspect']);
 			}
-			$url = trim((string)($ph['url'] ?? ''));
+			// strip markdown / wrappers: ![](url) or <url>
+			if (preg_match('#https?://[^\s\)\"\']+#i', $url, $m)) {
+				$url = $m[0];
+			}
+			$url = rtrim($url, '.,;)');
 			if (!filter_var($url, FILTER_VALIDATE_URL)) {
 				continue;
 			}
-			if (!empty($ph['has_watermark_suspect'])) {
+			if ($watermark) {
 				continue;
 			}
 			$photos[] = [
 				'url' => $url,
-				'source' => (string)($ph['source'] ?? 'other'),
-				'rank' => (int)($ph['rank'] ?? 99),
+				'source' => $source,
+				'rank' => $rank,
 			];
 		}
 		usort($photos, static fn($a, $b) => $a['rank'] <=> $b['rank']);
