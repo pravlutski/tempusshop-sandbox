@@ -38,18 +38,27 @@ class AiContentResearcher
 			}
 
 			$normalized = $this->normalizeResult($result['json'], $catalogProps, $collections, $task);
+			$normalized['draft'] = $this->validateAndEnrichPhotos($taskId, $task, $normalized['draft']);
+
 			$this->repo->upsertDraft($taskId, $normalized['draft']);
+
+			$photoCount = count($normalized['draft']['photos'] ?? []);
+			$note = (string)$normalized['note'];
+			if ($photoCount < 1) {
+				$note = trim($note . ' | Нет рабочих фото (URL битые/редирект на HTML). Нажми «Доискать фото».');
+			}
 
 			$this->repo->updateTask($taskId, [
 				'status' => $normalized['status'],
 				'match_status' => $normalized['match_status'],
 				'collection_id' => $normalized['collection_id'],
-				'error_text' => $normalized['note'],
+				'error_text' => $note,
 			]);
 
 			$this->repo->log($taskId, 'Research finished', [
 				'status' => $normalized['status'],
 				'match_status' => $normalized['match_status'],
+				'valid_photos' => $photoCount,
 				'sources' => $normalized['draft']['sources'] ?? [],
 			]);
 
@@ -58,6 +67,7 @@ class AiContentResearcher
 				'task_id' => $taskId,
 				'status' => $normalized['status'],
 				'match_status' => $normalized['match_status'],
+				'valid_photos' => $photoCount,
 			];
 		} catch (Throwable $e) {
 			$this->repo->updateTask($taskId, [
@@ -96,6 +106,8 @@ Rules for photos:
 - Marketplace photos allowed only if no watermark.
 - Aim for 8-15 candidates, rank best first.
 - Ordinary watch photos only (no infographics).
+- CRITICAL: each photos[].url MUST be a direct image file URL (ends with .jpg/.jpeg/.png/.webp OR known CDN image path) that returns HTTP 200 image/* — NOT a product HTML page. Do not use URLs that 301/302 to brand homepages.
+- Prefer retailer CDNs that host real files (e.g. seikoboutique.eu /.../*.jpg, brand media CDNs). Avoid dead boutique.uk paths that redirect to seikowatches.com homepage.
 For enum props: values MUST be chosen from the provided allowed values list when possible.
 PROMPT;
 	}
@@ -284,6 +296,132 @@ PROMPT;
 			'note' => (string)($json['notes'] ?? ''),
 			'draft' => $draft,
 		];
+	}
+
+	/**
+	 * Download-check photo URLs; keep only real images; cache locally for draft preview.
+	 * If almost none valid — second AI pass for working direct image URLs.
+	 */
+	private function validateAndEnrichPhotos(int $taskId, array $task, array $draft): array
+	{
+		$fetcher = new AiContentImageFetcher();
+		$photos = is_array($draft['photos'] ?? null) ? $draft['photos'] : [];
+		$before = count($photos);
+		$valid = $fetcher->filterValidPhotos($photos, 12);
+		$this->repo->log($taskId, 'Photo validation', [
+			'before' => $before,
+			'after' => count($valid),
+		]);
+
+		if (count($valid) < 2) {
+			$this->repo->log($taskId, 'Photo re-search started');
+			$extra = $this->researchPhotosOnly($task, array_column($photos, 'url'));
+			if ($extra) {
+				$merged = array_merge($valid, $fetcher->filterValidPhotos($extra, 12));
+				// unique by url
+				$by = [];
+				foreach ($merged as $ph) {
+					$by[$ph['url']] = $ph;
+				}
+				$valid = array_values($by);
+				$this->repo->log($taskId, 'Photo re-search done', ['valid' => count($valid)]);
+			}
+		}
+
+		$draft['photos'] = $valid;
+		$draft['selected_photos'] = array_slice(array_map(static function ($ph) {
+			return !empty($ph['local_url']) ? $ph['local_url'] : $ph['url'];
+		}, $valid), 0, 6);
+
+		// Prefer local cached files for publish too when available
+		return $draft;
+	}
+
+	public function refreshPhotos(int $taskId): array
+	{
+		$task = $this->repo->getTask($taskId);
+		if (!$task) {
+			throw new RuntimeException('Task not found');
+		}
+		$draftRow = $this->repo->getDraft($taskId);
+		if (!$draftRow) {
+			throw new RuntimeException('Draft not found — сначала Research');
+		}
+		$draft = [
+			'props' => json_decode((string)$draftRow['props_json'], true) ?: [],
+			'fields' => json_decode((string)$draftRow['fields_json'], true) ?: [],
+			'detail_text' => (string)$draftRow['detail_text'],
+			'detail_text_type' => (string)$draftRow['detail_text_type'],
+			'photos' => json_decode((string)$draftRow['photos_json'], true) ?: [],
+			'selected_photos' => json_decode((string)$draftRow['selected_photos_json'], true) ?: [],
+			'sources' => json_decode((string)$draftRow['sources_json'], true) ?: [],
+			'manual_url' => (string)$draftRow['manual_url'],
+			'video_url' => (string)$draftRow['video_url'],
+			'raw_ai' => json_decode((string)$draftRow['raw_ai_json'], true),
+		];
+
+		$extra = $this->researchPhotosOnly($task, array_column($draft['photos'], 'url'));
+		if ($extra) {
+			$draft['photos'] = array_merge($draft['photos'], $extra);
+		}
+		$draft = $this->validateAndEnrichPhotos($taskId, $task, $draft);
+		$this->repo->upsertDraft($taskId, $draft);
+		$this->repo->updateTask($taskId, [
+			'status' => 'needs_review',
+			'error_text' => 'Фото обновлены: ' . count($draft['photos']) . ' шт.',
+		]);
+		return [
+			'ok' => true,
+			'photos' => count($draft['photos']),
+		];
+	}
+
+	private function researchPhotosOnly(array $task, array $failedUrls = []): array
+	{
+		$system = <<<PROMPT
+You find WORKING direct product image URLs for watches.
+Use web_search. Return ONLY JSON:
+{"photos":[{"url":"https://...jpg","source":"official|retailer|marketplace","rank":1}]}
+Rules:
+- URLs must be direct image files that return image/* (jpg/png/webp).
+- Do NOT return HTML product pages or URLs that redirect to homepages.
+- Prefer seikoboutique.eu, official brand media CDNs, large EU retailers.
+- Avoid seikoboutique.co.uk/_images paths that redirect to seikowatches.com.
+- 6-12 photos of the exact model.
+PROMPT;
+		$user = json_encode([
+			'brand' => $task['brand_name'],
+			'article' => $task['article'],
+			'failed_urls_do_not_repeat' => array_values(array_filter($failedUrls)),
+			'hint' => 'Search product pages and extract real <img src> / og:image / CDN links.',
+		], JSON_UNESCAPED_UNICODE);
+
+		try {
+			$result = $this->client->researchJson($system, $user);
+		} catch (Throwable $e) {
+			$this->repo->log((int)$task['id'], 'Photo re-search failed', ['error' => $e->getMessage()], 'error');
+			return [];
+		}
+		$json = $result['json'] ?? null;
+		if (!is_array($json)) {
+			return [];
+		}
+		$photos = [];
+		foreach ((array)($json['photos'] ?? []) as $ph) {
+			$url = is_array($ph) ? trim((string)($ph['url'] ?? '')) : trim((string)$ph);
+			if (preg_match('#https?://[^\s\)\"\']+#i', $url, $m)) {
+				$url = rtrim($m[0], '.,;)');
+			}
+			if (!filter_var($url, FILTER_VALIDATE_URL)) {
+				continue;
+			}
+			$photos[] = [
+				'url' => $url,
+				'source' => is_array($ph) ? (string)($ph['source'] ?? 'retailer') : 'retailer',
+				'rank' => is_array($ph) ? (int)($ph['rank'] ?? 50) : 50,
+			];
+		}
+		return $photos;
 	}
 
 	private function resolvePropCode(string $code, array $catalogProps): ?string

@@ -12,6 +12,7 @@ class AiContentBootstrap
 		require_once $base . '/AiContentConfig.php';
 		require_once $base . '/AiContentAccess.php';
 		require_once $base . '/OpenAiClient.php';
+		require_once $base . '/AiContentImageFetcher.php';
 		require_once $base . '/AiContentRepository.php';
 		require_once $base . '/AiContentResearcher.php';
 		require_once $base . '/AiContentPublisher.php';

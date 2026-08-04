@@ -130,17 +130,19 @@ function render(res){
 	html += '<p class="ai-muted">Превью через серверный proxy (оригинальные URL сохраняются для публикации).</p>';
 	html += '<div class="ai-photos">';
 	(d.photos||[]).forEach(function(ph, idx){
-		const url = (ph && ph.url) ? ph.url : ph;
-		if (!url) return;
+		const remote = (ph && ph.url) ? ph.url : ph;
+		if (!remote) return;
+		const local = (ph && ph.local_url) ? ph.local_url : '';
+		const publishUrl = local || remote;
 		const source = (ph && ph.source) ? ph.source : '';
-		const checked = selectedSet[url] ? ' checked' : '';
-		const preview = ajax_path + 'imgProxy.php?u=' + encodeURIComponent(url);
-		const debugUrl = preview + '&debug=1';
+		const checked = selectedSet[publishUrl] || selectedSet[remote] || selectedSet[local] ? ' checked' : '';
+		const preview = local ? local : (ajax_path + 'imgProxy.php?u=' + encodeURIComponent(remote));
+		const debugUrl = ajax_path + 'imgProxy.php?u=' + encodeURIComponent(remote) + '&debug=1';
 		html += '<label class="ai-photo">';
-		html += '<input type="checkbox" class="photo-check" value="'+esc(url)+'"'+checked+'>';
-		html += '<img src="'+esc(preview)+'" data-orig="'+esc(url)+'" data-preview="'+esc(preview)+'" alt="" loading="lazy" referrerpolicy="no-referrer">';
-		html += '<span>'+esc(source||('#'+(idx+1)))+'</span>';
-		html += '<a class="ai-src" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">открыть оригинал</a> · ';
+		html += '<input type="checkbox" class="photo-check" value="'+esc(publishUrl)+'"'+checked+'>';
+		html += '<img src="'+esc(preview)+'" data-orig="'+esc(remote)+'" data-preview="'+esc(preview)+'" alt="" loading="lazy" referrerpolicy="no-referrer">';
+		html += '<span>'+esc(source||('#'+(idx+1)))+(local?' · cached':'')+'</span>';
+		html += '<a class="ai-src" href="'+esc(remote)+'" target="_blank" rel="noopener noreferrer">открыть оригинал</a> · ';
 		html += '<a class="ai-src ai-img-debug" href="'+esc(debugUrl)+'" target="_blank" rel="noopener">debug</a>';
 		html += '<div class="ai-img-err ai-muted" style="display:none"></div>';
 		html += '</label>';
@@ -212,6 +214,27 @@ $(document).on('click', '#btn-add-photo', function(){
 		+ '</label>';
 	$('.ai-photos').append(html);
 	$('#manual_photo_url').val('');
+});
+
+$(document).on('click', '#btn-refresh-photos', function(){
+	const $btn = $('#btn-refresh-photos').prop('disabled', true).text('Ищем фото…');
+	$.ajax({
+		url: ajax_path + 'refreshPhotos.php',
+		method: 'POST',
+		timeout: 200000,
+		data: {task_id: taskId}
+	}).done(function(res){
+		if (typeof res === 'string') try { res = JSON.parse(res); } catch(e) {}
+		if (!res.ok) { alert(res.error || 'Ошибка'); return; }
+		alert('Найдено рабочих фото: ' + res.photos);
+		load();
+	}).fail(function(xhr){
+		let msg = 'Ошибка поиска фото';
+		try { const j = JSON.parse(xhr.responseText); if (j.error) msg = j.error; } catch(e) {}
+		alert(msg);
+	}).always(function(){
+		$btn.prop('disabled', false).text('Доискать фото');
+	});
 });
 
 $(document).on('click', '#btn-save', function(){
