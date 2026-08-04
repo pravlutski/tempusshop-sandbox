@@ -20,7 +20,16 @@ $brands = $content->getBrands();
 	<div class="ai-head">
 		<h2>AI наполнение контента</h2>
 		<p class="ai-muted">Бренд + артикул → поиск в интернете → черновик → ручной апрув → товар на сайте</p>
-		<p><a href="/admin/utilities/ai_content/install.php">Установка / проверка таблиц</a></p>
+		<p>
+			<a class="btn btn-warning" href="/admin/utilities/ai_content/settings.php">⚙️ API key + Proxy</a>
+			<a href="/admin/utilities/ai_content/install.php">Установка / таблицы</a>
+		</p>
+		<?php
+		$__proxy = AiContentConfig::getProxyRaw();
+		if ($__proxy === ''):
+		?>
+			<div class="ai-note">Прокси не задан — Research к OpenAI из sandbox не пройдёт. Открой настройки и укажи proxy.</div>
+		<?php endif; ?>
 	</div>
 
 	<div class="ai-card">
