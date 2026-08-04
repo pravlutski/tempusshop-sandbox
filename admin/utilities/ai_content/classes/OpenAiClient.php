@@ -43,7 +43,7 @@ class OpenAiClient
 			],
 		];
 
-		$raw = $this->request('https://api.openai.com/v1/responses', $body, 120);
+		$raw = $this->request('https://api.openai.com/v1/responses', $body, 150);
 		$text = $this->extractOutputText($raw);
 		$json = $this->extractJson($text);
 
@@ -54,57 +54,50 @@ class OpenAiClient
 		];
 	}
 
-	/**
-	 * Fast multi-step check: parse → exit IP via proxy → OpenAI models.
-	 */
 	public function ping(): array
 	{
 		$parsed = AiContentConfig::parseProxy($this->proxy, $this->proxyType);
 		if (!$parsed) {
-			throw new RuntimeException('Прокси не разобран. Пример: user:pass@host:port + type socks5');
+			throw new RuntimeException('Прокси не разобран. Пример: user:pass@host:port + type http');
 		}
 
-		// 1) Quick exit-IP check through proxy (short timeouts)
-		$ipRes = $this->curlRaw('https://api.ipify.org?format=json', [
+		$usedType = $this->proxyType;
+		$ipRes = $this->curlWithFallback('https://api.ipify.org?format=json', [
 			CURLOPT_HTTPGET => true,
-			CURLOPT_TIMEOUT => 15,
-			CURLOPT_CONNECTTIMEOUT => 8,
-		], true);
+			CURLOPT_TIMEOUT => 20,
+			CURLOPT_CONNECTTIMEOUT => 10,
+		], $usedType);
 
-		$exit = '';
 		if ($ipRes['errno']) {
 			throw new RuntimeException(
 				'Прокси не отвечает (ipify): ' . $ipRes['error']
 				. ' | proxy=' . $parsed['hostport']
-				. ' | type=' . $parsed['type_name']
+				. ' | type_tried=' . implode(',', $ipRes['types_tried'] ?? [$usedType])
 				. ' | curl_errno=' . $ipRes['errno']
 			);
 		}
+
 		$ipJson = json_decode((string)$ipRes['body'], true);
 		$exit = is_array($ipJson) ? (string)($ipJson['ip'] ?? '') : trim((string)$ipRes['body']);
 		if ($exit === '') {
-			throw new RuntimeException(
-				'Прокси ответил пусто на ipify, HTTP ' . $ipRes['code']
-				. ' | proxy=' . $parsed['hostport']
-			);
+			throw new RuntimeException('Пустой ответ ipify, HTTP ' . $ipRes['code']);
 		}
 
-		// 2) OpenAI through same proxy
-		$oai = $this->curlRaw('https://api.openai.com/v1/models', [
+		$oaiType = $ipRes['type_used'] ?? $usedType;
+		$oai = $this->curlWithFallback('https://api.openai.com/v1/models', [
 			CURLOPT_HTTPGET => true,
 			CURLOPT_HTTPHEADER => [
 				'Authorization: Bearer ' . $this->apiKey,
 			],
-			CURLOPT_TIMEOUT => 25,
-			CURLOPT_CONNECTTIMEOUT => 10,
-		], true);
+			CURLOPT_TIMEOUT => 30,
+			CURLOPT_CONNECTTIMEOUT => 12,
+		], $oaiType);
 
 		if ($oai['errno']) {
 			throw new RuntimeException(
-				'OpenAI через прокси: curl ' . $oai['error']
+				'OpenAI через прокси: ' . $oai['error']
 				. ' | exit_ip=' . $exit
-				. ' | proxy=' . $parsed['hostport']
-				. ' | type=' . $parsed['type_name']
+				. ' | type_tried=' . implode(',', $oai['types_tried'] ?? [])
 			);
 		}
 
@@ -114,8 +107,7 @@ class OpenAiClient
 			throw new RuntimeException(
 				'OpenAI API error: ' . $msg
 				. ' | exit_ip=' . $exit
-				. ' | proxy=' . $parsed['hostport']
-				. ' | type=' . $parsed['type_name']
+				. ' | type=' . ($oai['type_used'] ?? '?')
 			);
 		}
 
@@ -124,15 +116,77 @@ class OpenAiClient
 			'http_code' => $oai['code'],
 			'proxy' => true,
 			'proxy_host' => $parsed['hostport'],
-			'proxy_type' => $parsed['type_name'],
+			'proxy_type' => $oai['type_used'] ?? $parsed['type_name'],
 			'exit_ip' => $exit,
-			'primary_ip' => $oai['primary_ip'],
+			'primary_ip' => $oai['primary_ip'] ?? '',
+			'note' => !empty($oai['type_used']) && $oai['type_used'] !== $this->proxyType
+				? "Сработал type={$oai['type_used']} (в настройках было {$this->proxyType}). Сохрани http."
+				: null,
 		];
+	}
+
+	/** Step diagnostics for settings UI */
+	public function diagnose(): array
+	{
+		$steps = [];
+		$parsed = AiContentConfig::parseProxy($this->proxy, $this->proxyType);
+		$steps[] = [
+			'step' => 'parse',
+			'ok' => (bool)$parsed,
+			'detail' => $parsed ?: 'parse failed',
+			'saved_type' => $this->proxyType,
+		];
+		if (!$parsed) {
+			return ['ok' => false, 'steps' => $steps];
+		}
+
+		$usedType = $this->proxyType;
+		$ip = $this->curlWithFallback('https://api.ipify.org?format=json', [
+			CURLOPT_HTTPGET => true,
+			CURLOPT_TIMEOUT => 20,
+			CURLOPT_CONNECTTIMEOUT => 10,
+		], $usedType);
+		$ipJson = json_decode((string)$ip['body'], true);
+		$exit = is_array($ipJson) ? (string)($ipJson['ip'] ?? '') : '';
+		$steps[] = [
+			'step' => 'ipify_via_proxy',
+			'ok' => !$ip['errno'] && $exit !== '',
+			'exit_ip' => $exit,
+			'error' => $ip['error'],
+			'errno' => $ip['errno'],
+			'http' => $ip['code'],
+			'type_used' => $ip['type_used'] ?? null,
+			'types_tried' => $ip['types_tried'] ?? [],
+			'ms' => $ip['ms'] ?? null,
+		];
+
+		$oai = $this->curlWithFallback('https://api.openai.com/v1/models', [
+			CURLOPT_HTTPGET => true,
+			CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $this->apiKey],
+			CURLOPT_TIMEOUT => 30,
+			CURLOPT_CONNECTTIMEOUT => 12,
+		], $ip['type_used'] ?? 'http');
+		$decoded = json_decode((string)$oai['body'], true);
+		$oaiMsg = is_array($decoded) ? ($decoded['error']['message'] ?? null) : null;
+		$steps[] = [
+			'step' => 'openai_models',
+			'ok' => !$oai['errno'] && $oai['code'] > 0 && $oai['code'] < 500 && $oai['code'] !== 403,
+			'http' => $oai['code'],
+			'error' => $oai['error'] ?: $oaiMsg,
+			'errno' => $oai['errno'],
+			'type_used' => $oai['type_used'] ?? null,
+			'types_tried' => $oai['types_tried'] ?? [],
+			'ms' => $oai['ms'] ?? null,
+			'geo_blocked' => is_string($oaiMsg) && (stripos($oaiMsg, 'Country') !== false || stripos($oaiMsg, 'territory') !== false),
+		];
+
+		$ok = !empty($steps[1]['ok']) && !empty($steps[2]['ok']);
+		return ['ok' => $ok, 'steps' => $steps];
 	}
 
 	private function request(string $url, array $body, int $timeout = 120): array
 	{
-		$res = $this->curlRaw($url, [
+		$res = $this->curlWithFallback($url, [
 			CURLOPT_POST => true,
 			CURLOPT_HTTPHEADER => [
 				'Content-Type: application/json',
@@ -140,11 +194,14 @@ class OpenAiClient
 			],
 			CURLOPT_POSTFIELDS => json_encode($body, JSON_UNESCAPED_UNICODE),
 			CURLOPT_TIMEOUT => $timeout,
-			CURLOPT_CONNECTTIMEOUT => 15,
-		], true);
+			CURLOPT_CONNECTTIMEOUT => 20,
+		], $this->proxyType);
 
 		if ($res['errno']) {
-			throw new RuntimeException('OpenAI curl error: ' . $res['error']);
+			throw new RuntimeException(
+				'OpenAI curl error: ' . $res['error']
+				. ' | types_tried=' . implode(',', $res['types_tried'] ?? [])
+			);
 		}
 		$decoded = json_decode((string)$res['body'], true);
 		if (!is_array($decoded)) {
@@ -157,7 +214,56 @@ class OpenAiClient
 		return $decoded;
 	}
 
-	private function curlRaw(string $url, array $opts, bool $withProxy): array
+	/**
+	 * Try requested proxy type, then HTTP fallback (common mislabel as SOCKS5).
+	 */
+	private function curlWithFallback(string $url, array $opts, string $preferredType): array
+	{
+		$types = [];
+		$preferredType = AiContentConfig::normalizeProxyType($preferredType);
+		$types[] = $preferredType;
+		foreach (['http', 'socks5h'] as $alt) {
+			if (!in_array($alt, $types, true)) {
+				$types[] = $alt;
+			}
+		}
+
+		$tried = [];
+		$last = [
+			'body' => '',
+			'errno' => 1,
+			'error' => 'no attempts',
+			'code' => 0,
+			'primary_ip' => '',
+			'types_tried' => [],
+			'ms' => 0,
+		];
+
+		foreach ($types as $type) {
+			$tried[] = $type;
+			$start = microtime(true);
+			$res = $this->curlRaw($url, $opts, $type);
+			$res['ms'] = (int)round((microtime(true) - $start) * 1000);
+			$res['type_used'] = $type;
+			$res['types_tried'] = $tried;
+			$last = $res;
+
+			if (!$res['errno'] && $res['code'] > 0) {
+				return $res;
+			}
+			// Connection timeout / proxy failures → try next type
+			if (in_array((int)$res['errno'], [6, 7, 28, 56, 97], true)) {
+				continue;
+			}
+			// Other errors: still try http once if not yet
+			continue;
+		}
+
+		$last['types_tried'] = $tried;
+		return $last;
+	}
+
+	private function curlRaw(string $url, array $opts, string $proxyType): array
 	{
 		$ch = curl_init($url);
 		$base = [
@@ -166,15 +272,16 @@ class OpenAiClient
 			CURLOPT_SSL_VERIFYPEER => true,
 			CURLOPT_SSL_VERIFYHOST => 2,
 			CURLOPT_TIMEOUT => 30,
-			CURLOPT_CONNECTTIMEOUT => 10,
+			CURLOPT_CONNECTTIMEOUT => 12,
 			CURLOPT_NOSIGNAL => true,
 		];
+		if (defined('CURL_IPRESOLVE_V4')) {
+			$base[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V4;
+		}
 		foreach ($opts as $k => $v) {
 			$base[$k] = $v;
 		}
-		if ($withProxy) {
-			$this->applyProxy($base);
-		}
+		$this->applyProxy($base, $proxyType);
 		curl_setopt_array($ch, $base);
 		$body = curl_exec($ch);
 		$errno = curl_errno($ch);
@@ -192,42 +299,38 @@ class OpenAiClient
 		];
 	}
 
-	private function applyProxy(array &$opts): void
+	private function applyProxy(array &$opts, string $proxyType): void
 	{
-		$parsed = AiContentConfig::parseProxy($this->proxy, $this->proxyType);
+		$parsed = AiContentConfig::parseProxy($this->proxy, $proxyType);
 		if (!$parsed) {
 			return;
 		}
 
 		$isSocks = !empty($parsed['is_socks']) || str_starts_with((string)$parsed['type_name'], 'socks');
+		$userpwd = (string)($parsed['userpwd'] ?? '');
+		$hostport = (string)$parsed['hostport'];
 
 		if ($isSocks) {
-			// Separate host/auth/type — most reliable on older libcurl
-			$opts[CURLOPT_PROXY] = $parsed['hostport'];
-			if (defined('CURLPROXY_SOCKS5_HOSTNAME')) {
-				$opts[CURLOPT_PROXYTYPE] = CURLPROXY_SOCKS5_HOSTNAME;
-			} else {
-				$opts[CURLOPT_PROXYTYPE] = defined('CURLPROXY_SOCKS5') ? CURLPROXY_SOCKS5 : 5;
+			$opts[CURLOPT_PROXY] = $hostport;
+			$opts[CURLOPT_PROXYTYPE] = defined('CURLPROXY_SOCKS5_HOSTNAME')
+				? CURLPROXY_SOCKS5_HOSTNAME
+				: (defined('CURLPROXY_SOCKS5') ? CURLPROXY_SOCKS5 : 5);
+			if ($userpwd !== '') {
+				$opts[CURLOPT_PROXYUSERPWD] = $userpwd;
 			}
-			if (!empty($parsed['userpwd'])) {
-				$opts[CURLOPT_PROXYUSERPWD] = $parsed['userpwd'];
-			}
-			// Do NOT set HTTPPROXYTUNNEL for SOCKS
 		} else {
-			$opts[CURLOPT_PROXY] = $parsed['hostport'];
-			$opts[CURLOPT_PROXYTYPE] = $parsed['type'];
+			// Full URL form is most reliable for HTTP CONNECT to HTTPS targets
+			if ($userpwd !== '') {
+				$opts[CURLOPT_PROXY] = 'http://' . $userpwd . '@' . $hostport;
+			} else {
+				$opts[CURLOPT_PROXY] = 'http://' . $hostport;
+			}
+			$opts[CURLOPT_PROXYTYPE] = defined('CURLPROXY_HTTP') ? CURLPROXY_HTTP : 0;
 			$opts[CURLOPT_HTTPPROXYTUNNEL] = true;
 			$opts[CURLOPT_PROXYAUTH] = CURLAUTH_ANY;
-			if (!empty($parsed['userpwd'])) {
-				$opts[CURLOPT_PROXYUSERPWD] = $parsed['userpwd'];
-			}
-			if (($parsed['type_name'] ?? '') === 'https') {
-				if (defined('CURLOPT_PROXY_SSL_VERIFYPEER')) {
-					$opts[CURLOPT_PROXY_SSL_VERIFYPEER] = false;
-				}
-				if (defined('CURLOPT_PROXY_SSL_VERIFYHOST')) {
-					$opts[CURLOPT_PROXY_SSL_VERIFYHOST] = 0;
-				}
+			// Also set USERPWD for libcurls that ignore creds in PROXY URL
+			if ($userpwd !== '') {
+				$opts[CURLOPT_PROXYUSERPWD] = $userpwd;
 			}
 		}
 	}

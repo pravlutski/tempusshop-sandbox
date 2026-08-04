@@ -67,7 +67,9 @@ if (class_exists('COption')) {
 
 		<button type="button" id="btn-save-settings" class="btn btn-primary">Сохранить</button>
 		<button type="button" id="btn-test-proxy" class="btn btn-warning">Проверить прокси → OpenAI</button>
+		<button type="button" id="btn-diagnose" class="btn btn-default">Диагностика</button>
 		<span id="settings-result" class="ai-muted" style="margin-left:10px;"></span>
+		<pre id="diag-out" style="display:none;margin-top:12px;background:#f7f7f7;padding:10px;border-radius:6px;max-height:280px;overflow:auto;font-size:12px;"></pre>
 	</div>
 </div>
 
@@ -96,18 +98,23 @@ $('#btn-save-settings').on('click', function(){
 	});
 });
 
+function proxyPayload(){
+	return {
+		api_key: $('#api_key').val(),
+		model: $('#model').val(),
+		proxy: $('#proxy').val(),
+		proxy_type: $('#proxy_type').val() || 'http'
+	};
+}
+
 $('#btn-test-proxy').on('click', function(){
-	showResult(true, 'проверка… (до ~40 сек, пробует http/socks)');
+	$('#proxy_type').val('http');
+	showResult(true, 'проверка через HTTP…');
 	$.ajax({
 		url: ajax_path + 'testProxy.php',
 		method: 'POST',
-		timeout: 45000,
-		data: {
-			api_key: $('#api_key').val(),
-			model: $('#model').val(),
-			proxy: $('#proxy').val(),
-			proxy_type: $('#proxy_type').val()
-		}
+		timeout: 50000,
+		data: proxyPayload()
 	}).done(function(res){
 		if (typeof res === 'string') try { res = JSON.parse(res); } catch(e) {}
 		if (!res.ok) { showResult(false, res.error || 'fail'); return; }
@@ -116,12 +123,30 @@ $('#btn-test-proxy').on('click', function(){
 		showResult(true, msg);
 	}).fail(function(xhr, status){
 		if (status === 'timeout') {
-			showResult(false, 'Таймаут 45с. Поставь type=http и сохрани — этот прокси скорее HTTP, не SOCKS5.');
+			showResult(false, 'Таймаут. Нажми «Диагностика» — посмотрим, куда именно не достучаться с сервера.');
 			return;
 		}
 		let msg = 'fail';
 		try { const j = JSON.parse(xhr.responseText); if (j.error) msg = j.error; } catch(e) {}
 		showResult(false, msg);
+	});
+});
+
+$('#btn-diagnose').on('click', function(){
+	$('#proxy_type').val('http');
+	showResult(true, 'диагностика…');
+	$('#diag-out').hide().text('');
+	$.ajax({
+		url: ajax_path + 'diagnoseProxy.php',
+		method: 'POST',
+		timeout: 55000,
+		data: proxyPayload()
+	}).done(function(res){
+		if (typeof res === 'string') try { res = JSON.parse(res); } catch(e) {}
+		$('#diag-out').show().text(JSON.stringify(res, null, 2));
+		showResult(!!res.ok, res.ok ? 'Диагностика OK' : (res.error || 'Есть ошибки — смотри JSON ниже'));
+	}).fail(function(xhr, status){
+		showResult(false, status === 'timeout' ? 'Таймаут диагностики' : 'Ошибка диагностики');
 	});
 });
 </script>

@@ -24,6 +24,11 @@ try {
 		$apiKey = $existing;
 	}
 
+	// This vendor endpoint is HTTP CONNECT, not SOCKS — avoid saving socks by mistake
+	if ($proxy !== '' && in_array($proxyType, ['socks5', 'socks5h'], true)) {
+		$proxyType = 'http';
+	}
+
 	AiContentConfig::save($apiKey, $model ?: 'gpt-4.1', $proxy, $proxyType);
 	(new AiContentRepository())->log(null, 'Settings saved', [
 		'proxy' => $proxy !== '',
