@@ -123,14 +123,24 @@ class AiContentConfig
 	 * Supported:
 	 * - host:port
 	 * - host:port:user:pass
+	 * - user:pass@host:port
 	 * - http://user:pass@host:port
 	 * - socks5://user:pass@host:port
+	 * - socks5h://user:pass@host:port  (DNS through proxy — preferred for OpenAI)
 	 */
 	public static function parseProxy(string $proxy, string $proxyType = 'http'): ?array
 	{
 		$proxy = trim($proxy);
 		if ($proxy === '') {
 			return null;
+		}
+
+		$proxyType = self::normalizeProxyType($proxyType);
+
+		// Force remote DNS for SOCKS — otherwise api.openai.com may resolve via RU DNS
+		// and/or traffic may leak outside the tunnel.
+		if ($proxyType === 'socks5') {
+			$proxyType = 'socks5h';
 		}
 
 		$typeMap = [
@@ -140,10 +150,19 @@ class AiContentConfig
 			'socks5h' => defined('CURLPROXY_SOCKS5_HOSTNAME') ? CURLPROXY_SOCKS5_HOSTNAME : (defined('CURLPROXY_SOCKS5') ? CURLPROXY_SOCKS5 : 5),
 		];
 
+		// user:pass@host:port  (no scheme) — common vendor format
+		if (!preg_match('#^[a-z][a-z0-9+.-]*://#i', $proxy)
+			&& preg_match('#^([^:@\s]+):([^@\s]+)@([^:/\s]+):(\d+)$#', $proxy, $m)
+		) {
+			$scheme = in_array($proxyType, ['socks5', 'socks5h'], true) ? 'socks5h' : $proxyType;
+			$proxy = $scheme . '://' . rawurlencode($m[1]) . ':' . rawurlencode($m[2]) . '@' . $m[3] . ':' . $m[4];
+		}
+
 		if (preg_match('#^(https?|socks5h?|socks4a?)://#i', $proxy, $m)) {
 			$scheme = strtolower($m[1]);
 			if ($scheme === 'socks5' || $scheme === 'socks5h') {
-				$proxyType = $scheme;
+				// Always socks5h for OpenAI geo bypass
+				$proxyType = 'socks5h';
 			} elseif ($scheme === 'https') {
 				$proxyType = 'https';
 			} else {
@@ -166,6 +185,7 @@ class AiContentConfig
 				'userpwd' => $userpwd,
 				'type' => $typeMap[$proxyType] ?? $typeMap['http'],
 				'type_name' => $proxyType,
+				'is_socks' => str_starts_with($proxyType, 'socks'),
 			];
 		}
 
@@ -176,6 +196,7 @@ class AiContentConfig
 				'userpwd' => null,
 				'type' => $typeMap[$proxyType] ?? $typeMap['http'],
 				'type_name' => $proxyType,
+				'is_socks' => str_starts_with($proxyType, 'socks'),
 			];
 		}
 		if (count($chunks) === 4) {
@@ -184,6 +205,7 @@ class AiContentConfig
 				'userpwd' => $chunks[2] . ':' . $chunks[3],
 				'type' => $typeMap[$proxyType] ?? $typeMap['http'],
 				'type_name' => $proxyType,
+				'is_socks' => str_starts_with($proxyType, 'socks'),
 			];
 		}
 

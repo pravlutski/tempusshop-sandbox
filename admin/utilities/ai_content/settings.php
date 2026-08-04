@@ -46,14 +46,21 @@ if (class_exists('COption')) {
 		</div>
 		<div class="ai-row">
 			<label>Proxy (обязательно для sandbox в BY/RU)</label>
-			<input type="text" id="proxy" class="form-control" value="<?php echo htmlspecialchars($currentProxy); ?>" placeholder="ip:port:user:pass или socks5://user:pass@ip:port">
-			<small class="ai-muted">Форматы: ip:port | ip:port:user:pass | http://user:pass@ip:port | socks5://user:pass@ip:port</small>
+			<input type="text" id="proxy" class="form-control" value="<?php echo htmlspecialchars($currentProxy); ?>" placeholder="user:pass@host:port">
+			<small class="ai-muted">
+				SOCKS5 пример: <code>user:pass@46.x.x.x:1887</code> + type <code>socks5</code>
+				(внутри принудительно socks5h — DNS тоже через прокси)
+			</small>
 		</div>
 		<div class="ai-row">
 			<label>Proxy type</label>
 			<select id="proxy_type" class="form-control">
-				<?php foreach (array('http','https','socks5','socks5h') as $t): ?>
-					<option value="<?php echo $t; ?>" <?php echo $currentProxyType === $t ? 'selected' : ''; ?>><?php echo $t; ?></option>
+				<?php
+				$types = array('socks5','socks5h','http','https');
+				$selectedType = in_array($currentProxyType, array('socks5','socks5h'), true) ? $currentProxyType : ($currentProxy !== '' ? $currentProxyType : 'socks5');
+				foreach ($types as $t):
+				?>
+					<option value="<?php echo $t; ?>" <?php echo $selectedType === $t ? 'selected' : ''; ?>><?php echo $t; ?></option>
 				<?php endforeach; ?>
 			</select>
 		</div>
@@ -99,7 +106,7 @@ $('#btn-test-proxy').on('click', function(){
 	}).done(function(res){
 		if (typeof res === 'string') try { res = JSON.parse(res); } catch(e) {}
 		if (!res.ok) { showResult(false, res.error || 'fail'); return; }
-		showResult(true, 'OK, HTTP ' + res.http_code);
+		showResult(true, 'OK HTTP ' + res.http_code + ' | exit_ip=' + (res.exit_ip||'?') + ' | proxy=' + (res.proxy_host||'') + ' (' + (res.proxy_type||'') + ')');
 	}).fail(function(xhr){
 		let msg = 'fail';
 		try { const j = JSON.parse(xhr.responseText); if (j.error) msg = j.error; } catch(e) {}
