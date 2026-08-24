@@ -79,7 +79,7 @@
         $this->getItemsBX();
         $this->updateStatus($this->module, ['status_text' => 'Расчет позиций', 'percent' => '50']);
         $this->sortByList();
-        $this->sortTailItems();
+        $this->sortTailItems([$this, 'compareItemsByRating']);
         $this->exportTable();
 
         $this->updateStatus($this->module, ['status_text' => 'Обновление свойства', 'percent' => '70']);
@@ -190,6 +190,135 @@
         return (int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0);
       }
 
+      /** Старая логика: только продажи за 12 мес, по убыванию. */
+      private function compareItemsBySales(array $a, array $b): int
+      {
+        return ($b['sells'] ?? 0) <=> ($a['sells'] ?? 0);
+      }
+
+      private function resetPipelineState(): void
+      {
+        $this->itemsBX = [];
+        $this->itemsTail = [];
+        $this->flatArray = [];
+        $this->lastIndex = null;
+      }
+
+      private function loadBaseData(): void
+      {
+        $this->getBrands();
+        $this->getSections();
+        $this->getSortList();
+        $this->getCiPriceData();
+        $this->getItemsMS();
+      }
+
+      private function buildPreparedItems(): array
+      {
+        if (empty($this->itemsSort)) {
+          die('Нет моделей от МС');
+        }
+
+        $arModel = array_keys($this->itemsSort);
+        $arSelect = [
+          'ID',
+          'IBLOCK_ID',
+          'IBLOCK_SECTION_ID',
+          'DATE_CREATE',
+          'PROPERTY_CML2_ARTICLE',
+          'PROPERTY_BRAND',
+        ];
+        $arFilter = [
+          'IBLOCK_ID' => 16,
+          'PROPERTY_CML2_ARTICLE' => $arModel,
+        ];
+
+        $result = CIBlockElement::GetList([], $arFilter, false, false, $arSelect);
+        $this->itemsTMP = [];
+
+        while ($row = $result->GetNextElement()) {
+          $item = $row->GetFields();
+          $this->itemsTMP[$item['PROPERTY_CML2_ARTICLE_VALUE']] = [
+            'id' => $item['ID'],
+            'brand' => $this->brands[$item['PROPERTY_BRAND_VALUE']] ?? '',
+            'section' => $this->sections[$item['IBLOCK_SECTION_ID']] ?? '',
+            'model' => $item['PROPERTY_CML2_ARTICLE_VALUE'],
+            'date_create' => $item['DATE_CREATE'],
+          ];
+        }
+
+        $items = [];
+        foreach ($this->itemsSort as $model => $quan) {
+          if (!isset($this->itemsTMP[$model])) {
+            continue;
+          }
+          $items[] = $this->enrichItemWithRating([
+            'id' => $this->itemsTMP[$model]['id'],
+            'brand' => $this->itemsTMP[$model]['brand'],
+            'section' => $this->itemsTMP[$model]['section'],
+            'model' => $this->itemsTMP[$model]['model'],
+            'date_create' => $this->itemsTMP[$model]['date_create'],
+            'sells' => $quan,
+          ]);
+        }
+
+        return $items;
+      }
+
+      private function buildFlatFromItems(array $items, callable $comparator): array
+      {
+        $originalSortList = $this->sortList;
+        $this->resetPipelineState();
+        $this->sortList = $originalSortList;
+        $this->divideByAllGroups($items, $comparator);
+        $this->sortByList(false);
+        $this->sortTailItems($comparator, false);
+
+        return $this->flatArray;
+      }
+
+      private function getCurrentSortByModel(): array
+      {
+        $map = [];
+        $arFilter = [
+          'IBLOCK_ID' => 16,
+          '!PROPERTY_CML2_ARTICLE' => false,
+        ];
+        $arSelect = ['ID', 'SORT', 'PROPERTY_CML2_ARTICLE'];
+
+        $result = CIBlockElement::GetList([], $arFilter, false, false, $arSelect);
+        while ($row = $result->GetNext()) {
+          $model = trim((string)($row['PROPERTY_CML2_ARTICLE_VALUE'] ?? ''));
+          if ($model === '') {
+            continue;
+          }
+          $map[$model] = (int)$row['SORT'];
+        }
+
+        return $map;
+      }
+
+      /**
+       * Сравнение: старая логика (продажи) vs новая (рейтинг) vs текущий SORT в каталоге.
+       * Ничего не записывает в каталог.
+       */
+      public function runCompare(): void
+      {
+        $this->loadBaseData();
+        $items = $this->buildPreparedItems();
+        $itemsByModel = [];
+        foreach ($items as $item) {
+          $itemsByModel[$item['model']] = $item;
+        }
+
+        $legacyFlat = $this->buildFlatFromItems($items, [$this, 'compareItemsBySales']);
+        $newFlat = $this->buildFlatFromItems($items, [$this, 'compareItemsByRating']);
+        $currentSort = $this->getCurrentSortByModel();
+
+        $this->exportCompareTable($itemsByModel, $legacyFlat, $newFlat, $currentSort);
+        print_r('Compare export: sort-compare.xlsx' . "\n");
+      }
+
       public function getItemsMSLEG()
       {
         $ms = new MoySkladAPI( $this->site_id );
@@ -248,65 +377,13 @@
 
       public function getItemsBX()
       {
-        if ( empty($this->itemsSort) ){
-          die('Нет моделей от МС');
-        }
-        $arModel = array_keys($this->itemsSort);
+        $tmp = $this->buildPreparedItems();
 
+        print_r( 'BX prepared -- ' . count($tmp) . "\n" );
 
-        $arSelect = [
-          'ID',
-          'IBLOCK_ID',
-          'IBLOCK_SECTION_ID',
-          'DATE_CREATE',
-          'PROPERTY_CML2_ARTICLE',
-          'PROPERTY_BRAND',
-        ];
+        $this->divideByAllGroups( $tmp, [$this, 'compareItemsByRating'] );
 
-        $arFilter = [
-          "IBLOCK_ID" => 16,
-          "PROPERTY_CML2_ARTICLE" => $arModel
-        ];
-
-        $result = CIBlockElement::GetList(array(), $arFilter, false, false, $arSelect);
-        $this->itemsBX = [];
-
-        print_r( 'itemsBX (raw) -- ' .$result->SelectedRowsCount() . "\n" );
-
-        while ( $row = $result->GetNextElement() ){
-
-          $item = $row->GetFields();
-          $sectionName = $this->sections[ $item['IBLOCK_SECTION_ID'] ];
-          $brandName = $this->brands[ $item['PROPERTY_BRAND_VALUE'] ];
-          $this->itemsTMP[ $item['PROPERTY_CML2_ARTICLE_VALUE'] ] = [
-            'id' => $item['ID'],
-            'brand' => $brandName,
-            'section' => $sectionName,
-            'model' => $item['PROPERTY_CML2_ARTICLE_VALUE'],
-            'date_create' => $item['DATE_CREATE'],
-          ];
-        }
-
-        foreach ( $this->itemsSort as $model => $quan ){
-          if ( isset($this->itemsTMP[$model]) ){
-            $tmp[] = $this->enrichItemWithRating([
-              'id' => $this->itemsTMP[$model]['id'],
-              'brand' => $this->itemsTMP[$model]['brand'],
-              'section' => $this->itemsTMP[$model]['section'],
-              'model' => $this->itemsTMP[$model]['model'],
-              'date_create' => $this->itemsTMP[$model]['date_create'],
-              'sells' => $quan,
-            ]);
-          }
-        }
-
-        // file_put_contents( "/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/sites/sort2.txt", print_r($tmp, 1) );
-        print_r( 'BX sorted (raw) -- ' .$result->SelectedRowsCount() . "\n" );
-
-        $this->divideByAllGroups( $tmp );
-
-        print_r( 'BX sorted (groups) -- ' .count($this->itemsBX) . "\n" );
-        unset($tmp);
+        print_r( 'BX sorted (groups) -- ' . count($this->itemsBX) . "\n" );
       }
 
       public function sortByListLEg()
@@ -339,7 +416,7 @@
         $this->flatArray = $flatArray;
       }
 
-      public function sortByList()
+      public function sortByList(bool $writeDebugDump = true)
       {
           $flatArray = [];
           $index = 1;
@@ -379,12 +456,14 @@
           }
 
           $this->flatArray = $flatArray;
-          file_put_contents( "/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/sites/sort1.txt", print_r($this->flatArray, 1) );
+          if ($writeDebugDump) {
+            file_put_contents( "/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/sites/sort1.txt", print_r($this->flatArray, 1) );
+          }
       }
 
-      private function divideByAllGroups( array $array )
+      private function divideByAllGroups(array $array, callable $comparator)
       {
-        usort($array, [$this, 'compareItemsByRating']);
+        usort($array, $comparator);
 
         foreach ( $array as $arModel ){
 
@@ -452,16 +531,19 @@
         // file_put_contents( "/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/sites/sort3.txt", print_r($this->itemsBX, 1) );
       }
 
-      private function sortTailItems():void
+      private function sortTailItems(callable $comparator, bool $debug = true): void
       {
-        usort($this->itemsTail, [$this, 'compareItemsByRating']);
+        usort($this->itemsTail, $comparator);
 
-        $flatArray = [];
         $index = $this->lastIndex + 1;
-        var_dump($this->lastIndex);
+        if ($debug) {
+          var_dump($this->lastIndex);
+        }
         foreach ( $this->itemsTail as $item ){
           if( isset($this->flatArray[$item['model']]) ){
-            var_dump('How is it Possible?');
+            if ($debug) {
+              var_dump('How is it Possible?');
+            }
             continue;
           }
           $this->flatArray[ $item['model'] ] = [
@@ -547,6 +629,81 @@
         $objWriter->save( $dirPath . $filename );
       }
 
+      public function exportCompareTable(array $itemsByModel, array $legacyFlat, array $newFlat, array $currentSort): void
+      {
+        if (!class_exists('PHPExcel')) {
+          require($_SERVER['DOCUMENT_ROOT'] . '/bitrix/php_interface/include/classes/phpexcel/PHPExcel/IOFactory.php');
+        }
+
+        $rows = [];
+        foreach ($itemsByModel as $model => $item) {
+          $indexOld = $legacyFlat[$model]['index'] ?? null;
+          $indexNew = $newFlat[$model]['index'] ?? null;
+          $indexDb = $currentSort[$model] ?? null;
+          if ($indexOld === null && $indexNew === null) {
+            continue;
+          }
+          $rows[] = [
+            'model' => $model,
+            'brand' => $item['brand'] ?? '',
+            'sales' => (float)($item['sells'] ?? 0),
+            'rating' => round((float)($item['rating'] ?? 0), 2),
+            'age_days' => (int)($item['age_days'] ?? 0),
+            'index_old' => $indexOld,
+            'index_new' => $indexNew,
+            'index_db' => $indexDb,
+            'delta_old_new' => ($indexOld !== null && $indexNew !== null) ? ($indexOld - $indexNew) : null,
+            'delta_db_new' => ($indexDb !== null && $indexNew !== null) ? ($indexDb - $indexNew) : null,
+          ];
+        }
+
+        usort($rows, function ($a, $b) {
+          $aMove = abs((int)($a['delta_old_new'] ?? 0));
+          $bMove = abs((int)($b['delta_old_new'] ?? 0));
+          return $bMove <=> $aMove;
+        });
+
+        $xls = new PHPExcel();
+        $sheet = $xls->getActiveSheet();
+        $sheet->setTitle('compare');
+
+        $headers = [
+          'A1' => 'Модель',
+          'B1' => 'Бренд',
+          'C1' => 'Продажи 12м',
+          'D1' => 'Рейтинг',
+          'E1' => 'Возраст, дн',
+          'F1' => 'Индекс OLD (продажи)',
+          'G1' => 'Индекс NEW (рейтинг)',
+          'H1' => 'Индекс в каталоге сейчас',
+          'I1' => 'Δ OLD→NEW',
+          'J1' => 'Δ DB→NEW',
+        ];
+        foreach ($headers as $cell => $title) {
+          $sheet->setCellValueExplicit($cell, $title, PHPExcel_Cell_DataType::TYPE_STRING);
+        }
+        $sheet->getColumnDimension('A')->setWidth(22);
+        $sheet->getColumnDimension('B')->setWidth(18);
+
+        $i = 2;
+        foreach ($rows as $row) {
+          $sheet->setCellValueExplicit("A{$i}", $row['model'], PHPExcel_Cell_DataType::TYPE_STRING);
+          $sheet->setCellValueExplicit("B{$i}", $row['brand'], PHPExcel_Cell_DataType::TYPE_STRING);
+          $sheet->setCellValue("C{$i}", $row['sales']);
+          $sheet->setCellValue("D{$i}", $row['rating']);
+          $sheet->setCellValue("E{$i}", $row['age_days']);
+          $sheet->setCellValue("F{$i}", $row['index_old']);
+          $sheet->setCellValue("G{$i}", $row['index_new']);
+          $sheet->setCellValue("H{$i}", $row['index_db']);
+          $sheet->setCellValue("I{$i}", $row['delta_old_new']);
+          $sheet->setCellValue("J{$i}", $row['delta_db_new']);
+          $i++;
+        }
+
+        $objWriter = new PHPExcel_Writer_Excel2007($xls);
+        $objWriter->save($_SERVER['DOCUMENT_ROOT'] . '/admin/panel/engine/sites/sort-compare.xlsx');
+      }
+
       public function getSortList()
       {
         $strSql = "SELECT * FROM {$this->table}";
@@ -606,5 +763,13 @@
       }
   }
 
-  ( new CalculateSort( $argv[1] ?? "RU" ) )->run();
+  $cabinet = $argv[1] ?? 'RU';
+  $mode = $argv[2] ?? 'run';
+  $calc = new CalculateSort($cabinet);
+
+  if ($mode === 'compare') {
+    $calc->runCompare();
+  } else {
+    $calc->run();
+  }
  ?>
