@@ -104,6 +104,92 @@
         }
       }
 
+      /**
+       * Возраст товара в днях. Без/некорректной даты — 365 (по ТЗ).
+       */
+      private function getProductAgeDays(?string $dateCreate): int
+      {
+        $timestamp = $this->getCreateTimestamp($dateCreate);
+        if ($timestamp <= 0) {
+          return 365;
+        }
+
+        $ageDays = (int)floor((time() - $timestamp) / 86400);
+        if ($ageDays < 0) {
+          return 365;
+        }
+
+        return $ageDays;
+      }
+
+      private function getCreateTimestamp(?string $dateCreate): int
+      {
+        if ($dateCreate === null || $dateCreate === '') {
+          return 0;
+        }
+
+        if (function_exists('MakeTimeStamp')) {
+          $timestamp = (int)MakeTimeStamp($dateCreate);
+          if ($timestamp > 0) {
+            return $timestamp;
+          }
+        }
+
+        $timestamp = strtotime($dateCreate);
+        return $timestamp !== false ? (int)$timestamp : 0;
+      }
+
+      private function getCalcDays(int $ageDays): int
+      {
+        return min(365, max(30, $ageDays));
+      }
+
+      private function getRating(float $sales, int $calcDays): float
+      {
+        if ($calcDays <= 0) {
+          return 0.0;
+        }
+
+        return $sales * 365 / $calcDays;
+      }
+
+      private function enrichItemWithRating(array $item): array
+      {
+        $sales = (float)($item['sells'] ?? 0);
+        $ageDays = $this->getProductAgeDays($item['date_create'] ?? null);
+        $calcDays = $this->getCalcDays($ageDays);
+
+        $item['age_days'] = $ageDays;
+        $item['calc_days'] = $calcDays;
+        $item['rating'] = $this->getRating($sales, $calcDays);
+
+        return $item;
+      }
+
+      /**
+       * Сортировка внутри группы: RATING DESC, продажи DESC, дата создания DESC, ID ASC.
+       */
+      private function compareItemsByRating(array $a, array $b): int
+      {
+        $ratingCmp = ($b['rating'] ?? 0) <=> ($a['rating'] ?? 0);
+        if ($ratingCmp !== 0) {
+          return $ratingCmp;
+        }
+
+        $salesCmp = ($b['sells'] ?? 0) <=> ($a['sells'] ?? 0);
+        if ($salesCmp !== 0) {
+          return $salesCmp;
+        }
+
+        $dateCmp = $this->getCreateTimestamp($b['date_create'] ?? null)
+          <=> $this->getCreateTimestamp($a['date_create'] ?? null);
+        if ($dateCmp !== 0) {
+          return $dateCmp;
+        }
+
+        return (int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0);
+      }
+
       public function getItemsMSLEG()
       {
         $ms = new MoySkladAPI( $this->site_id );
@@ -172,6 +258,7 @@
           'ID',
           'IBLOCK_ID',
           'IBLOCK_SECTION_ID',
+          'DATE_CREATE',
           'PROPERTY_CML2_ARTICLE',
           'PROPERTY_BRAND',
         ];
@@ -196,19 +283,20 @@
             'brand' => $brandName,
             'section' => $sectionName,
             'model' => $item['PROPERTY_CML2_ARTICLE_VALUE'],
+            'date_create' => $item['DATE_CREATE'],
           ];
         }
 
         foreach ( $this->itemsSort as $model => $quan ){
           if ( isset($this->itemsTMP[$model]) ){
-            // $tmp[] = $this->itemsTMP[$model];
-            $tmp[] = [
-              'id' =>$this->itemsTMP[$model]['id'],
+            $tmp[] = $this->enrichItemWithRating([
+              'id' => $this->itemsTMP[$model]['id'],
               'brand' => $this->itemsTMP[$model]['brand'],
               'section' => $this->itemsTMP[$model]['section'],
               'model' => $this->itemsTMP[$model]['model'],
-              'sells' => $quan
-            ];
+              'date_create' => $this->itemsTMP[$model]['date_create'],
+              'sells' => $quan,
+            ]);
           }
         }
 
@@ -296,10 +384,7 @@
 
       private function divideByAllGroups( array $array )
       {
-        // Сначала сортируем все товары по убыванию продаж
-        usort($array, function($a, $b) {
-            return $b['sells'] <=> $a['sells'];
-        });
+        usort($array, [$this, 'compareItemsByRating']);
 
         foreach ( $array as $arModel ){
 
@@ -314,6 +399,8 @@
               'section' => $arModel['section'],
               'model' => $arModel['model'],
               'sells' => $arModel['sells'],
+              'rating' => $arModel['rating'],
+              'date_create' => $arModel['date_create'],
             ];
             continue;
           }
@@ -324,6 +411,8 @@
             'section' => $arModel['section'],
             'model' => $arModel['model'],
             'sells' => $arModel['sells'],
+            'rating' => $arModel['rating'],
+            'date_create' => $arModel['date_create'],
           ];
 
         }
@@ -365,10 +454,7 @@
 
       private function sortTailItems():void
       {
-        // На всякий еще раз сортируем все товары по убыванию продаж
-        usort($this->itemsTail, function($a, $b) {
-          return $b['sells'] <=> $a['sells'];
-        });
+        usort($this->itemsTail, [$this, 'compareItemsByRating']);
 
         $flatArray = [];
         $index = $this->lastIndex + 1;
