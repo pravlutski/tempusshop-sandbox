@@ -1,6 +1,13 @@
 #!/usr/bin/php
 <?php
 $_SERVER["DOCUMENT_ROOT"] = "/var/www/bitrix/data/www/tempusshop.ru";
+define("NO_KEEP_STATISTIC", true);
+define("NOT_CHECK_PERMISSIONS", true);
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
+if (!CronWorkerGuard::startFromArgv()) {
+	exit;
+}
 error_reporting(0);
 $token = trim(file_get_contents($_SERVER["DOCUMENT_ROOT"] . '/local/cron/parser/wb_alltime/token.txt'));
 

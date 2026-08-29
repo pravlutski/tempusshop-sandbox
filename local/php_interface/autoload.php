@@ -9,6 +9,7 @@ Loader::registerAutoLoadClasses(null, [
 		'Pict'							=> '/bitrix/php_interface/include/classes/classPict.php',
 		'CSyncPW'						=> '/bitrix/php_interface/include/classes/sync_pw.php',
 		'WorkersChecker'				=> '/local/classes/WorkersChecker.php',
+		'CronWorkerGuard'				=> '/local/classes/CronWorkerGuard.php',
 		'TsLogger'						=> '/local/classes/TsLogger.php',
 		'TsTriggers'					=> '/local/classes/TsTriggers.php',
 		'TsTriggersEdit'				=> '/bitrix/php_interface/include/classes/TsTriggersEdit.php',

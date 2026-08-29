@@ -6,6 +6,10 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
+if (!CronWorkerGuard::startFromArgv()) {
+	exit;
+}
 require($_SERVER["DOCUMENT_ROOT"]."/admin/panel/engine/wb/classes/ProductsWB.php");
 set_time_limit(0);
 

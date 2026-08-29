@@ -6,6 +6,10 @@
   define("NOT_CHECK_PERMISSIONS", true);
 
   require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+  require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
+  if (!CronWorkerGuard::startFromArgv()) {
+  	exit;
+  }
 
   use PhpOffice\PhpSpreadsheet\Spreadsheet;
   use PhpOffice\PhpSpreadsheet\Writer\Xlsx;

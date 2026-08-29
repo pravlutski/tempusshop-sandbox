@@ -3,6 +3,10 @@
 $_SERVER["DOCUMENT_ROOT"] = "/var/www/bitrix/data/www/tempusshop.ru";
 
 require($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_before.php');
+require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
+if (!CronWorkerGuard::startFromArgv()) {
+	exit;
+}
 
 $logger = new TsLogger("/DeleteLogs/");
 $logger->clearFolders();

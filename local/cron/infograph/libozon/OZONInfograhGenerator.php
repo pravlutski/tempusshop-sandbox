@@ -10,6 +10,10 @@ error_reporting(E_ALL);
 ob_implicit_flush( true );
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
+if (!CronWorkerGuard::startFromArgv()) {
+	exit;
+}
 require($_SERVER["DOCUMENT_ROOT"] . "/vendor/autoload.php");
 
 use Bitrix\Main\Application,

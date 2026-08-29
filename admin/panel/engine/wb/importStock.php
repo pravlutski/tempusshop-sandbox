@@ -7,6 +7,10 @@ define("NOT_CHECK_PERMISSIONS", true);
 
 set_time_limit(0);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
+if (!CronWorkerGuard::startFromArgv()) {
+	exit;
+}
 require $_SERVER['DOCUMENT_ROOT'] . '/local/vendor/autoload.php';
 require("classes/StocksDataProvider2.php");
 
