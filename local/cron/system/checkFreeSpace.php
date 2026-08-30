@@ -7,10 +7,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
-if (!CronWorkerGuard::startFromArgv()) {
+$workers = new WorkersChecker("local_cron_system_checkFreeSpace_php");
+if (!$workers->checkStatus()) {
 	exit;
 }
+$workers->updateStatus("Y");
 
 exec("df -h",$output,$code); 
 

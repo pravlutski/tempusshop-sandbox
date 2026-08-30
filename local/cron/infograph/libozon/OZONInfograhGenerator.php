@@ -10,10 +10,11 @@ error_reporting(E_ALL);
 ob_implicit_flush( true );
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
-if (!CronWorkerGuard::startFromArgv()) {
+$workers = new WorkersChecker("local_cron_infograph_libozon_OZONInfograhGenerator_php");
+if (!$workers->checkStatus()) {
 	exit;
 }
+$workers->updateStatus("Y");
 require($_SERVER["DOCUMENT_ROOT"] . "/vendor/autoload.php");
 
 use Bitrix\Main\Application,

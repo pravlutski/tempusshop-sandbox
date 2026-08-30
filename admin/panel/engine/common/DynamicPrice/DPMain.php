@@ -6,10 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
-if (!CronWorkerGuard::startFromArgv()) {
+$workers = new WorkersChecker("common_DynamicPrice_DPMain_php_OZON_IP");
+if (!$workers->checkStatus()) {
 	exit;
 }
+$workers->updateStatus("Y");
 require_once("lib/bootstrap.php");
 
 class DPMain extends OrchestraCore

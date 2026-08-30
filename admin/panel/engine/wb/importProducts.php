@@ -6,10 +6,26 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
-if (!CronWorkerGuard::startFromArgv()) {
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"WR" => "panel_engine_wb_importProducts_php_WR",
+	"WT" => "panel_engine_wb_importProducts_php_WT",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "panel_engine_wb_importProducts_php_WR";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
 	exit;
 }
+$workers->updateStatus("Y");
 require($_SERVER["DOCUMENT_ROOT"]."/admin/panel/engine/wb/classes/ProductsWB.php");
 set_time_limit(0);
 

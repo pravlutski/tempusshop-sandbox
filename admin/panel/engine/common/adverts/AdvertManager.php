@@ -6,10 +6,26 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
-if (!CronWorkerGuard::startFromArgv()) {
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"wb" => "engine_common_adverts_AdvertManager_php_wb",
+	"ozon" => "engine_common_adverts_AdvertManager_php_ozon",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "engine_common_adverts_AdvertManager_php_wb";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
 	exit;
 }
+$workers->updateStatus("Y");
 require("lib/bootstrap.php");
 
 class AdvertManager

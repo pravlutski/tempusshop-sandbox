@@ -7,10 +7,27 @@ define("NOT_CHECK_PERMISSIONS", true);
 
 set_time_limit(0);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
-if (!CronWorkerGuard::startFromArgv()) {
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"CABINET=WR" => "engine_wb_importStock_php_CABINET_WR",
+	"CABINET=TL" => "engine_wb_importStock_php_CABINET_TL",
+	"CABINET=WT" => "engine_wb_importStock_php_CABINET_WT",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "engine_wb_importStock_php_CABINET_WR";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
 	exit;
 }
+$workers->updateStatus("Y");
 require $_SERVER['DOCUMENT_ROOT'] . '/local/vendor/autoload.php';
 require("classes/StocksDataProvider2.php");
 

@@ -7,6 +7,7 @@ class WorkersChecker {
     private $connection;
     private $table = 'ci_worker_busy';
     private $arData = [];
+    private $shutdownRegistered = false;
 
     public function __construct ($workerID = "") {
 		global $DB;
@@ -95,6 +96,16 @@ class WorkersChecker {
         $this->db->Update($this->table, $in, "WHERE WORKER_ID = '{$this->workerID}'", $err_mess.__LINE__);
 
         $this->logger->log("LOG", "Статус " . $this->workerID . " изменен на " . $status);
+
+        // die()/fatal не доходят до updateStatus("N") в конце скрипта —
+        // снимаем флаг сами, иначе checkWorkers думает что процесс завис
+        if ($status == "Y" && !$this->shutdownRegistered) {
+            $this->shutdownRegistered = true;
+            $self = $this;
+            register_shutdown_function(function () use ($self) {
+                $self->updateStatus("N");
+            });
+        }
 
     }
 }

@@ -6,10 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
-if (!CronWorkerGuard::startFromArgv()) {
+$workers = new WorkersChecker("panel_engine_wb_checkFboNew_php_WR");
+if (!$workers->checkStatus()) {
 	exit;
 }
+$workers->updateStatus("Y");
 require("classes/fbo/bootstrap.php");
 set_time_limit(0);
 // error_reporting(E_ALL);

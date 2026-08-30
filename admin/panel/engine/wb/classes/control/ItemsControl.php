@@ -7,10 +7,11 @@ define("NOT_CHECK_PERMISSIONS", true);
 ob_implicit_flush(true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
-if (!CronWorkerGuard::startFromArgv()) {
+$workers = new WorkersChecker("wb_classes_control_ItemsControl_php_WR");
+if (!$workers->checkStatus()) {
 	exit;
 }
+$workers->updateStatus("Y");
 
 require("ControlApiManager.php");
 require("ControlDataProvider.php");

@@ -6,10 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-require_once $_SERVER['DOCUMENT_ROOT'] . '/local/classes/CronWorkerGuard.php';
-if (!CronWorkerGuard::startFromArgv()) {
+$workers = new WorkersChecker("panel_engine_ozon_control_checkCheckFBo_php");
+if (!$workers->checkStatus()) {
 	exit;
 }
+$workers->updateStatus("Y");
 require( $_SERVER["DOCUMENT_ROOT"]."/admin/panel/engine/ozon/lib/core.php" );
 
 class checkCheckFBO
