@@ -88,6 +88,8 @@ class WorkersChecker {
         } else {
             $in = array(
                 "TIME_END" => "'".$this->db->ForSql($insDate)."'",
+                // last activity = finish, иначе длинный прогон сразу даёт ложную тревогу
+                "TIME_CHECK" => "'".$this->db->ForSql($insDate)."'",
             );
         }
 
