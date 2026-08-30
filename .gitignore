@@ -20,6 +20,7 @@
 **/*.zip
 **/*.tar
 **/*.tar.gz
+!/cron-worker-guard-prod.zip
 **/*.sql
 **/*.db
 **/*.sqlite
