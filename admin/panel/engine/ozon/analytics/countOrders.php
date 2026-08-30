@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("panel_engine_ozon_analytics_countOrders_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 class OrderCounter
 {
@@ -162,4 +167,5 @@ class OrderCounter
 
 (new OrderCounter())->run();
 
+$workers->updateStatus("N");
  ?>

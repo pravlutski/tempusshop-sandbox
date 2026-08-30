@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("engine_ozon_importFBOGroup_php_IP_AVTO");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(0);
 
 use Bitrix\Main\Application,
@@ -53,3 +58,4 @@ require_once 'importStockFBO.php';
 (new checkFBONEW($CABINET))->run();
 // (new OzonImportPricesFBO($CABINET))->run();
 // (new OzonImportStocksFBO($CABINET))->run();
+$workers->updateStatus("N");

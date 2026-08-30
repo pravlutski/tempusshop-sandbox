@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("engine_ozon_importSalesGroup_php_IP_AVTO");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(0);
 
 use Bitrix\Main\Application,
@@ -54,3 +59,4 @@ require_once 'importSales_v4.php';
 // (new OzonImportSalesClass($CABINET))->UpdateTmpTable();
 (new SalesManager($CABINET))->run();
 // (new OzonImportPricesSales($CABINET))->run();
+$workers->updateStatus("N");

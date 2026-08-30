@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 ob_implicit_flush(true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("panel_engine_wb_analytics_sppAnalytics_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 class TopAnalyticsWB
 {
@@ -266,4 +271,5 @@ class TopAnalyticsWB
 }
 
 (new TopAnalyticsWB)->run();
+$workers->updateStatus("N");
  ?>

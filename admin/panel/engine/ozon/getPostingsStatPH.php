@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("admin_panel_engine_ozon_getPostingsStatPH_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 CModule::IncludeModule('panel.manager');
 
 class OzonPostingsPH
@@ -193,4 +198,5 @@ class OzonPostingsPH
 ( new OzonPostingsPH( $argv[1] ?? "IP" ) )->run();
 
 
+$workers->updateStatus("N");
  ?>

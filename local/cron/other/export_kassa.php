@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("local_cron_other_export_kassa_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 class ExportProfileKassa
 {
@@ -119,4 +124,5 @@ class ExportProfileKassa
 ( new ExportProfileKassa )->run();
 
 
+$workers->updateStatus("N");
  ?>

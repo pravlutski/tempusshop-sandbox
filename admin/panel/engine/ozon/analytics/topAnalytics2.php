@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("panel_engine_ozon_analytics_topAnalytics2_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(0);
 
 class TopAnalyticsCollector
@@ -205,4 +210,5 @@ class TopAnalyticsCollector
 }
 
 (new TopAnalyticsCollector)->run();
+$workers->updateStatus("N");
  ?>

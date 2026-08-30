@@ -9,6 +9,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("marketplace_wb_set_item_props_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(3600);
 
 CModule::IncludeModule("iblock");
@@ -670,4 +675,5 @@ while($ob = $rs->GetNextElement()){
 echo date("Y-m-d H:i:s") . " - Запись артикулов из символьных кодов. Обработано {$cntAll} товаров/r/n";
 CProSet::setOption("WB_SET_ITEMS_CODE", "{$i}");
 //require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
+$workers->updateStatus("N");
 ?>

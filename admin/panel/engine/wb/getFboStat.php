@@ -6,6 +6,26 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"WR" => "panel_engine_wb_getFboStat_php_WR",
+	"TL" => "panel_engine_wb_getFboStat_php_TL",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "panel_engine_wb_getFboStat_php_WR";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 class WBFboStat
 {
@@ -244,4 +264,5 @@ $cab = $argv[1] ?? '';
 if ( !in_array($cab,['WR','TL']) ) $cab = 'WR';
 
 ( new WBFboStat( $cab ) )->run();
+$workers->updateStatus("N");
  ?>

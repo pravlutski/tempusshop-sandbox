@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("wb_classes_control_PriceControl_php_WR");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require("ControlDataProvider.php");
 require("ControlCommunicationService.php");
 require("{$_SERVER['DOCUMENT_ROOT']}/admin/panel/engine/wb/classes/StocksDataProvider.php");
@@ -368,4 +373,5 @@ $obj = new PriceControl(
 );
 
 $obj->run();
+$workers->updateStatus("N");
  ?>

@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("panel_engine_yandex_analytics_getOrdersReport_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require( __DIR__.'/../lib/bootstrap.php' );
 
 class OrdersReport
@@ -188,4 +193,5 @@ class OrdersReport
 }
 
 (new OrdersReport('WR'))->run();
+$workers->updateStatus("N");
  ?>

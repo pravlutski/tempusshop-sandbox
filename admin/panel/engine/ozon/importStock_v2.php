@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("ozon_importStock_v2_php_IP_AVTO");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require('lib/core.php');
 
 class ImportStockV2
@@ -253,4 +258,5 @@ $obj = new ImportStockV2(
   mode: $argv[2]
 );
 $obj->run();
+$workers->updateStatus("N");
  ?>

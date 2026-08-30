@@ -7,6 +7,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("local_cron_system_checkFreeSpace_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 exec("df -h",$output,$code); 
 
@@ -24,4 +29,5 @@ if(intval($tmp[3]) <= 1){
 	CEvent::SendImmediate("IM_NEW_MESSAGE", array("s1"), $arFields, "N", 405);
 }
 //require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
+$workers->updateStatus("N");
 ?>

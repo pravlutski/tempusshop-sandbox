@@ -6,6 +6,27 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"CABINET=WR" => "engine_wb_importPrices_php_CABINET_WR",
+	"CABINET=TL" => "engine_wb_importPrices_php_CABINET_TL",
+	"CABINET=WT" => "engine_wb_importPrices_php_CABINET_WT",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "engine_wb_importPrices_php_CABINET_WR";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(0);
 
 use Bitrix\Main\Application,
@@ -523,3 +544,4 @@ use Bitrix\Main\Application,
 }
 
 (new WbImportPrices())->run();
+$workers->updateStatus("N");

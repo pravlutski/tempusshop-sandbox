@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("engine_ozon_importPrices_php_IP_AVTO");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require( $_SERVER['DOCUMENT_ROOT']."/admin/panel/engine/ozon/classes/PriceManager.php" );
 set_time_limit(0);
 
@@ -498,3 +503,4 @@ class OzonImportPrices
 }
 
 ( new OzonImportPrices( $argv[1] ) )->run();
+$workers->updateStatus("N");

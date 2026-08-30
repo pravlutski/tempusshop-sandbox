@@ -7,6 +7,26 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"12" => "local_cron_parser_competitor_php_12",
+	"" => "local_cron_parser_competitor_php",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "local_cron_parser_competitor_php";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 CModule::IncludeModule("main");
 CModule::IncludeModule("iblock");
 CModule::IncludeModule("catalog");
@@ -642,4 +662,5 @@ if (php_sapi_name() === 'cli') {
         http_response_code(500);
     }
 }
+$workers->updateStatus("N");
 ?>

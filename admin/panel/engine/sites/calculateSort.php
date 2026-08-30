@@ -6,6 +6,11 @@
   define("NOT_CHECK_PERMISSIONS", true);
 
   require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+  $workers = new WorkersChecker("panel_engine_sites_calculateSort_php_RU");
+  if (!$workers->checkStatus()) {
+  	exit;
+  }
+  $workers->updateStatus("Y");
 
   use PhpOffice\PhpSpreadsheet\Spreadsheet;
   use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -521,4 +526,5 @@
   }
 
   ( new CalculateSort( $argv[1] ?? "RU" ) )->run();
+  $workers->updateStatus("N");
  ?>

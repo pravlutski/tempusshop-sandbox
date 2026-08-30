@@ -9,6 +9,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("cron_other_update_all_props_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(3600);
 
 
@@ -181,4 +186,5 @@ foreach($arAlready as $ID){
 }
 
 
+$workers->updateStatus("N");
 ?>

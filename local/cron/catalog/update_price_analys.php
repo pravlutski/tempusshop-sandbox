@@ -9,6 +9,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("price_analys_php_PRICE_ID_ALL");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(3600);
 //if (function_exists('ini_set')) ini_set('memory_limit','1512M');
 
@@ -69,4 +74,5 @@ if(in_array($_REQUEST["PRICE_ID"], $arPriceID)){
 }
 //CPanelPricelist::updateDateDelivery();
 CPanelPricelist::updateProps();
+$workers->updateStatus("N");
 ?>

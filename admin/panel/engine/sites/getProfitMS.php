@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("admin_panel_engine_sites_getProfitMS_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 class ProfitMS
 {
@@ -126,4 +131,5 @@ sleep(10);
 ( new ProfitMS(6, 's2') )->run();
 
 
+$workers->updateStatus("N");
  ?>

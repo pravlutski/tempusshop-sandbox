@@ -6,6 +6,26 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"OZON IP" => "common_DynamicPrice_DPCorrector_php_OZON_IP",
+	"WB WR" => "common_DynamicPrice_DPCorrector_php_WB_WR",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "common_DynamicPrice_DPCorrector_php_OZON_IP";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require_once("lib/bootstrap.php");
 
 class DPCorrector
@@ -232,4 +252,5 @@ class DPCorrector
 $obj = new DPCorrector( $argv[1], $argv[2] );
 $obj->run();
 
+$workers->updateStatus("N");
  ?>

@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("engine_ozon_analytics_sppAnalytics2_php_IP");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 class SppAnalyticsCollector
 {
@@ -235,4 +240,5 @@ class SppAnalyticsCollector
 }
 
 (new SppAnalyticsCollector)->run();
+$workers->updateStatus("N");
  ?>

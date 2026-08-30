@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("admin_modules_promcom_cron_getTurnover_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 CModule::IncludeModule("panel.manager");
 
@@ -120,4 +125,5 @@ class TurnoverClass
 (new TurnoverClass)->run();
 
 
+$workers->updateStatus("N");
  ?>

@@ -6,6 +6,27 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"WR" => "engine_wb_orders_WBOrderMain_php_WR",
+	"WT" => "engine_wb_orders_WBOrderMain_php_WT",
+	"TL" => "engine_wb_orders_WBOrderMain_php_TL",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "engine_wb_orders_WBOrderMain_php_WR";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 use Bitrix\Main\Loader,
     Bitrix\Main\ModuleManager,
@@ -550,4 +571,5 @@ class WBOrderMain {
 }
 $cab = $argv[1];
 ( new WBOrderMain($cab) )->run();
+$workers->updateStatus("N");
  ?>

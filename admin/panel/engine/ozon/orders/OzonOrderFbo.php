@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("engine_ozon_orders_OzonOrderFbo_php_IP");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 class OzonOrderFbo {
 
@@ -293,4 +298,5 @@ class OzonOrderFbo {
 }
 
 ( new OzonOrderFbo($argv[1]) )->run();
+$workers->updateStatus("N");
  ?>

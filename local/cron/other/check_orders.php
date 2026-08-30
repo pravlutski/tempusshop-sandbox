@@ -9,6 +9,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("local_cron_other_check_orders_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(0);
 //if (function_exists('ini_set')) ini_set('memory_limit','1512M');
 
@@ -378,4 +383,5 @@ if(count($arError) > 0){
 
 
 //require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
+$workers->updateStatus("N");
 ?>

@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("engine_ozon_orders_OzonOrderStatus_php_IP");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 use Bitrix\Main\Loader,
     Bitrix\Main\ModuleManager,
@@ -306,4 +311,5 @@ class OzonOrderStatus
 
 (new OzonOrderStatus( $argv[1] ?? "IP" ) )->run();
 
+$workers->updateStatus("N");
  ?>

@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("engine_ozon_analytics_stocks_getToClientStockMovement_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 class ClientStockMovement
 {
@@ -183,4 +188,5 @@ class ClientStockMovement
 }
 
 (new ClientStockMovement)->run();
+$workers->updateStatus("N");
  ?>

@@ -7,6 +7,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("cron_catalog_update_activity_items_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(3600);
 
 CModule::IncludeModule("iblock");
@@ -103,4 +108,5 @@ if(count($arActivate) > 0){
 	}
 }
 //require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
+$workers->updateStatus("N");
 ?>

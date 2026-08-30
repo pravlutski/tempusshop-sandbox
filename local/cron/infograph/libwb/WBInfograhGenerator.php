@@ -10,6 +10,11 @@ error_reporting(E_ALL);
 ob_implicit_flush( true );
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("local_cron_infograph_libwb_WBInfograhGenerator_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require($_SERVER["DOCUMENT_ROOT"] . "/vendor/autoload.php");
 
 use Bitrix\Main\Application,
@@ -317,4 +322,5 @@ class WBInfographGenerator
 }
 
 (new WBInfographGenerator)->run();
+$workers->updateStatus("N");
  ?>

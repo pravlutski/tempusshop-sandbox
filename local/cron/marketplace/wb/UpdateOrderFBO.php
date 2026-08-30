@@ -29,7 +29,7 @@ class UpdateOrderFBO{
 		$this->hl = new HighloadApi(self::HL_BLOCK_ID);
 		
 		$this->logger = new TsLogger("/wb/" . __CLASS__ . "/");
-		$this->workers = new WorkersChecker(__CLASS__);
+		$this->workers = new WorkersChecker("UpdateOrderFBO_wb");
 		
 		$this->panelDB = new DBPanel();
 	}

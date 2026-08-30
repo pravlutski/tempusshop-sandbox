@@ -1,6 +1,14 @@
 #!/usr/bin/php
 <?php
 $_SERVER["DOCUMENT_ROOT"] = "/var/www/bitrix/data/www/tempusshop.ru";
+define("NO_KEEP_STATISTIC", true);
+define("NOT_CHECK_PERMISSIONS", true);
+require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("parser_wb_alltime_cron_wb2_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 error_reporting(0);
 $token = trim(file_get_contents($_SERVER["DOCUMENT_ROOT"] . '/local/cron/parser/wb_alltime/token.txt'));
 
@@ -192,4 +200,5 @@ echo "\n✓ Сбор данных завершен. Найдено товаро�
 echo "Файл с полным списком: wb_alltime.csv\n";
 
 fclose($fp_all);
+$workers->updateStatus("N");
 ?>

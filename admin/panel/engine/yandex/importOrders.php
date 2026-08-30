@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("admin_panel_engine_yandex_importOrders_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require( 'lib/bootstrap.php' );
 
 class ImportOrders extends ImportBase
@@ -102,4 +107,5 @@ class ImportOrders extends ImportBase
 
 $obj = new ImportOrders( 'WR' );
 $obj->run();
+$workers->updateStatus("N");
 ?>

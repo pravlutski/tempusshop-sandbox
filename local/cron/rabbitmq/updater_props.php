@@ -8,6 +8,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("local_cron_rabbitmq_updater_props_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require_once($_SERVER['DOCUMENT_ROOT'] . '/local/classes/SyncHelper.php');
 
 set_time_limit(0);
@@ -104,4 +109,5 @@ if (count($arIds) > 0) {
 		sleep(1); 
 	}
 }
+$workers->updateStatus("N");
 ?>

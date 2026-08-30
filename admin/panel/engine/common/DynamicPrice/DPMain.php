@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("common_DynamicPrice_DPMain_php_OZON_IP");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require_once("lib/bootstrap.php");
 
 class DPMain extends OrchestraCore
@@ -64,4 +69,5 @@ class DPMain extends OrchestraCore
 $obj = new DPMain($argv[1], $argv[2]);
 $obj->run();
 
+$workers->updateStatus("N");
  ?>

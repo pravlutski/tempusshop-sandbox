@@ -7,6 +7,11 @@ define("NOT_CHECK_PERMISSIONS", true);
 ob_implicit_flush( true );
 
 require( $_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/include/prolog_before.php" );
+$workers = new WorkersChecker("admin_panel_engine_wb_getReviews_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 use \Bitrix\Main\Application;
 
@@ -298,4 +303,5 @@ class ReviewsWB
 }
 
 ( new ReviewsWB('WR') )->run();
+$workers->updateStatus("N");
  ?>

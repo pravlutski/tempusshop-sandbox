@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("engine_ozon_reportStock_php_IP_AVTO");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(0);
 require_once '/var/www/bitrix/data/www/tempusshop.ru/bitrix/php_interface/include/classes/phpexcel_1.8/PHPExcel.php';
 //require_once 'importProductsControl.php';
@@ -379,3 +384,4 @@ $arStat = [
 	'time_end' => $timeEnd
 ];
 updateStatus( $module, $arStat, $CurDB );
+$workers->updateStatus("N");

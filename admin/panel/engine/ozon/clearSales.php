@@ -6,6 +6,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("admin_panel_engine_ozon_clearSales_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(0);
 
 use Bitrix\Main\Application,
@@ -103,3 +108,4 @@ class ClearSales{
 //(new OzonImportSales())->run();
 (new ClearSales("TI"))->run();
 (new ClearSales("IP"))->run();
+$workers->updateStatus("N");

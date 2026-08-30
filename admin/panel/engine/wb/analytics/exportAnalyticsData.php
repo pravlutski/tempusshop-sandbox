@@ -5,6 +5,11 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workers = new WorkersChecker("panel_engine_wb_analytics_exportAnalyticsData_php");
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 
 CModule::IncludeModule('panel.manager');
 
@@ -69,4 +74,5 @@ arrayToCsv($data, '/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/wb/
 
 $rows = $panel->select(['*'], 'wb_spp_analytics_by_hour')->make();
 arrayToCsv($rows, '/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/wb/export/wb_spp_analytics_by_hour.csv');
+$workers->updateStatus("N");
  ?>

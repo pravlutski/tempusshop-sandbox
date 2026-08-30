@@ -6,6 +6,26 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"IP 1" => "ozon_importProducts_nosync_php_IP_1",
+	"IP" => "engine_ozon_importProducts_nosync_php_IP",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "ozon_importProducts_nosync_php_IP_1";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 set_time_limit(0);
 
 use Bitrix\Main\Application,
@@ -815,3 +835,4 @@ class OzonImportProducts{
 	}
 
 ( new OzonImportProducts( $argv[1],$argv[2] ) )->run();
+$workers->updateStatus("N");

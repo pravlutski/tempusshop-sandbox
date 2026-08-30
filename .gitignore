@@ -20,7 +20,9 @@
 **/*.zip
 **/*.tar
 **/*.tar.gz
+!/cron-worker-guard-prod.zip
 **/*.sql
+!/ci_worker_busy_update_timeouts.sql
 **/*.db
 **/*.sqlite
 **/*.jpg

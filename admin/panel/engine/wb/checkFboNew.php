@@ -6,6 +6,27 @@ define("NO_KEEP_STATISTIC", true);
 define("NOT_CHECK_PERMISSIONS", true);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+$workerArgs = array();
+if (!empty($_SERVER["argv"])) {
+	foreach (array_slice($_SERVER["argv"], 1) as $arg) {
+		if ($arg === "" || $arg === "-f" || (isset($arg[0]) && $arg[0] === "-")) {
+			continue;
+		}
+		$workerArgs[] = $arg;
+	}
+}
+$workerKey = implode(" ", $workerArgs);
+$workerMap = array(
+	"WR" => "panel_engine_wb_checkFboNew_php_WR",
+	"TL" => "panel_engine_wb_checkFboNew_php_TL",
+	"IP" => "panel_engine_wb_checkFboNew_php_IP",
+);
+$workerId = isset($workerMap[$workerKey]) ? $workerMap[$workerKey] : "panel_engine_wb_checkFboNew_php_WR";
+$workers = new WorkersChecker($workerId);
+if (!$workers->checkStatus()) {
+	exit;
+}
+$workers->updateStatus("Y");
 require("classes/fbo/bootstrap.php");
 set_time_limit(0);
 // error_reporting(E_ALL);
@@ -1101,3 +1122,4 @@ class checkFBONEW
 }
 
 (new checkFBONEW($argv[1]))->run();
+$workers->updateStatus("N");
