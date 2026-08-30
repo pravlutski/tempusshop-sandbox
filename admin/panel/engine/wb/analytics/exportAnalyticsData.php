@@ -74,4 +74,5 @@ arrayToCsv($data, '/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/wb/
 
 $rows = $panel->select(['*'], 'wb_spp_analytics_by_hour')->make();
 arrayToCsv($rows, '/var/www/bitrix/data/www/tempusshop.ru/admin/panel/engine/wb/export/wb_spp_analytics_by_hour.csv');
+$workers->updateStatus("N");
  ?>

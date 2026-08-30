@@ -125,4 +125,5 @@ class TurnoverClass
 (new TurnoverClass)->run();
 
 
+$workers->updateStatus("N");
  ?>

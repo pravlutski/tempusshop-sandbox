@@ -303,4 +303,5 @@ class ReviewsWB
 }
 
 ( new ReviewsWB('WR') )->run();
+$workers->updateStatus("N");
  ?>

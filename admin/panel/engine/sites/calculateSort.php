@@ -526,4 +526,5 @@
   }
 
   ( new CalculateSort( $argv[1] ?? "RU" ) )->run();
+  $workers->updateStatus("N");
  ?>

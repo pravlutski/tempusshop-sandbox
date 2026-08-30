@@ -183,4 +183,5 @@ class ItemsControl
 
 $obj = new ItemsControl( $argv[1] );
 $obj->run();
+$workers->updateStatus("N");
  ?>

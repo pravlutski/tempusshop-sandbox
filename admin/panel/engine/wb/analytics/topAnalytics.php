@@ -268,4 +268,5 @@ class TopAnalyticsWB
 }
 
 (new TopAnalyticsWB)->run();
+$workers->updateStatus("N");
  ?>

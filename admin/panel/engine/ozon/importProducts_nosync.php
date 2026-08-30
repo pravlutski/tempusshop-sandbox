@@ -835,3 +835,4 @@ class OzonImportProducts{
 	}
 
 ( new OzonImportProducts( $argv[1],$argv[2] ) )->run();
+$workers->updateStatus("N");

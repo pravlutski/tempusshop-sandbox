@@ -125,4 +125,5 @@ class UpdaterProps {
 }
 
 (new UpdaterProps())->run();
+$workers->updateStatus("N");
 ?>

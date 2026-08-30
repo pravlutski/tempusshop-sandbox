@@ -258,4 +258,5 @@ $obj = new ImportStockV2(
   mode: $argv[2]
 );
 $obj->run();
+$workers->updateStatus("N");
  ?>

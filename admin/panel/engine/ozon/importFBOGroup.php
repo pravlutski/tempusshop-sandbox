@@ -58,3 +58,4 @@ require_once 'importStockFBO.php';
 (new checkFBONEW($CABINET))->run();
 // (new OzonImportPricesFBO($CABINET))->run();
 // (new OzonImportStocksFBO($CABINET))->run();
+$workers->updateStatus("N");

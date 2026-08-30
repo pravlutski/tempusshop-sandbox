@@ -121,4 +121,5 @@ class MegaExport
 }
 
 (new MegaExport)->run();
+$workers->updateStatus("N");
  ?>

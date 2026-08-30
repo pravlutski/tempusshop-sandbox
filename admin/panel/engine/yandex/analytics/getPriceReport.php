@@ -145,4 +145,5 @@ class GetPriceReport
 }
 
 (new GetPriceReport('WR'))->run();
+$workers->updateStatus("N");
  ?>

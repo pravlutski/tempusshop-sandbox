@@ -234,4 +234,5 @@ class OzonPostingsPD
 ( new OzonPostingsPD( $argv[1] ?? "IP" ) )->run();
 
 
+$workers->updateStatus("N");
  ?>

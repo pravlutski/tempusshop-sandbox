@@ -298,4 +298,5 @@ class OzonOrderFbo {
 }
 
 ( new OzonOrderFbo($argv[1]) )->run();
+$workers->updateStatus("N");
  ?>

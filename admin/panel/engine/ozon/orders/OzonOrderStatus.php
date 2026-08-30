@@ -311,4 +311,5 @@ class OzonOrderStatus
 
 (new OzonOrderStatus( $argv[1] ?? "IP" ) )->run();
 
+$workers->updateStatus("N");
  ?>

@@ -322,4 +322,5 @@ class WBInfographGenerator
 }
 
 (new WBInfographGenerator)->run();
+$workers->updateStatus("N");
  ?>

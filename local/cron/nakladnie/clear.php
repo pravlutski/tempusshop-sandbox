@@ -14,3 +14,4 @@ if (file_exists('/var/www/bitrix/data/www/tempusshop.ru/upload/nakladnie_cache/'
         unlink($file);
     }
 }
+$workers->updateStatus("N");

@@ -252,4 +252,5 @@ class DPCorrector
 $obj = new DPCorrector( $argv[1], $argv[2] );
 $obj->run();
 
+$workers->updateStatus("N");
  ?>

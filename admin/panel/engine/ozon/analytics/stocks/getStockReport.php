@@ -204,4 +204,5 @@ class StockReport
 }
 
 ( new StockReport('IP') )->run();
+$workers->updateStatus("N");
  ?>

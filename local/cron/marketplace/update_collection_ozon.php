@@ -79,4 +79,5 @@ class UpdaterOzon{
 }
 
 (new UpdaterOzon())->run();
+$workers->updateStatus("N");
 ?>

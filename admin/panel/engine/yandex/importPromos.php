@@ -153,4 +153,5 @@ class ImportPromos extends ImportBase
 
 $obj = new ImportPromos('WR');
 $obj->run();
+$workers->updateStatus("N");
  ?>

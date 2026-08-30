@@ -193,4 +193,5 @@ class OrdersReport
 }
 
 (new OrdersReport('WR'))->run();
+$workers->updateStatus("N");
  ?>

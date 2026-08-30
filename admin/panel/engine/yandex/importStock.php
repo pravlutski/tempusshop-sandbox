@@ -164,4 +164,5 @@ class ImportStock extends ImportBase
 
 $obj = new ImportStock('WR');
 $obj->run();
+$workers->updateStatus("N");
  ?>

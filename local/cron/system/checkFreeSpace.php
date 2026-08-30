@@ -29,4 +29,5 @@ if(intval($tmp[3]) <= 1){
 	CEvent::SendImmediate("IM_NEW_MESSAGE", array("s1"), $arFields, "N", 405);
 }
 //require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
+$workers->updateStatus("N");
 ?>

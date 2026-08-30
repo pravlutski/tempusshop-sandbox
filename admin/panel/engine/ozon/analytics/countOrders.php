@@ -167,4 +167,5 @@ class OrderCounter
 
 (new OrderCounter())->run();
 
+$workers->updateStatus("N");
  ?>

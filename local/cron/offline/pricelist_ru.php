@@ -90,3 +90,4 @@ foreach ($arSQL as $key => $item) {
       $DB->Update("offline_price_ru", $in, "WHERE article ='".$key."'", $err_mess.__LINE__);
   }
 }
+$workers->updateStatus("N");

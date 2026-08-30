@@ -906,4 +906,5 @@ class Updater{
 }
 
 (new Updater())->run();
+$workers->updateStatus("N");
 ?>

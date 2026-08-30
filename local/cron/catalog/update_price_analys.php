@@ -74,4 +74,5 @@ if(in_array($_REQUEST["PRICE_ID"], $arPriceID)){
 }
 //CPanelPricelist::updateDateDelivery();
 CPanelPricelist::updateProps();
+$workers->updateStatus("N");
 ?>

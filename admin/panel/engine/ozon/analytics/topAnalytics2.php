@@ -210,4 +210,5 @@ class TopAnalyticsCollector
 }
 
 (new TopAnalyticsCollector)->run();
+$workers->updateStatus("N");
  ?>

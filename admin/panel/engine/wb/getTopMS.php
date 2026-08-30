@@ -160,4 +160,5 @@ function updateStatus( string $code, array $arStat, $db ):void
   }
 }
 
+$workers->updateStatus("N");
  ?>

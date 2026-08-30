@@ -171,4 +171,5 @@ class CheckSppChange
 }
 
 ( new CheckSppChange )->run();
+$workers->updateStatus("N");
  ?>

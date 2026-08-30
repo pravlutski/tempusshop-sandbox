@@ -38,4 +38,5 @@ if ($needStart == 'NEED_START') {
 	$logger->log("LOG", "Пропускаем");
 }
 
+$workers->updateStatus("N");
 ?>

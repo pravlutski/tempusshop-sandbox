@@ -301,4 +301,5 @@ class OZONInfographGenerator
 }
 
 (new OZONInfographGenerator)->run();
+$workers->updateStatus("N");
  ?>

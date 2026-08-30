@@ -503,3 +503,4 @@ class OzonImportPrices
 }
 
 ( new OzonImportPrices( $argv[1] ) )->run();
+$workers->updateStatus("N");

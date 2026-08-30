@@ -181,4 +181,5 @@ function updateStatus( string $code, array $arStat, $db ):void
   $db->query( $strSql );
 }
 
+$workers->updateStatus("N");
  ?>

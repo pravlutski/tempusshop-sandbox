@@ -675,4 +675,5 @@ while($ob = $rs->GetNextElement()){
 echo date("Y-m-d H:i:s") . " - Запись артикулов из символьных кодов. Обработано {$cntAll} товаров/r/n";
 CProSet::setOption("WB_SET_ITEMS_CODE", "{$i}");
 //require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
+$workers->updateStatus("N");
 ?>

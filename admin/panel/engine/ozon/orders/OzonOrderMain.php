@@ -757,4 +757,5 @@ class OzonOrderMain {
 }
 
 ( new OzonOrderMain( $argv[1] ?? "IP" ) )->run();
+$workers->updateStatus("N");
  ?>

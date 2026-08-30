@@ -16,4 +16,5 @@ $logger->clearFolders();
 global $DB;
 $DB->Query("DELETE FROM ci_log WHERE timestamp < (NOW() - INTERVAL 90 DAY)", false, $err_mess.__LINE__);
 
+$workers->updateStatus("N");
 ?>

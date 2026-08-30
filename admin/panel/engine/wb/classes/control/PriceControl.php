@@ -373,4 +373,5 @@ $obj = new PriceControl(
 );
 
 $obj->run();
+$workers->updateStatus("N");
  ?>

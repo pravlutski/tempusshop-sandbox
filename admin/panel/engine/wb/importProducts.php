@@ -74,4 +74,5 @@ $arStat = [
 ];
 $objProducts->updateStatus( 'importProducts_'.$cab, $arStat );
 $objProducts->writeLog( 'END' );
+$workers->updateStatus("N");
  ?>

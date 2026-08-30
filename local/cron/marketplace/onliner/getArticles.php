@@ -151,4 +151,5 @@ class OnlinerXml extends SimpleXMLReader
 
 (new OnlinerXml())->run();
 //require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
+$workers->updateStatus("N");
 ?>

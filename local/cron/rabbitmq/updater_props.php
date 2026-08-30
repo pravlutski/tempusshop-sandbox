@@ -109,4 +109,5 @@ if (count($arIds) > 0) {
 		sleep(1); 
 	}
 }
+$workers->updateStatus("N");
 ?>

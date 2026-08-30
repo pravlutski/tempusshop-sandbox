@@ -384,3 +384,4 @@ $arStat = [
 	'time_end' => $timeEnd
 ];
 updateStatus( $module, $arStat, $CurDB );
+$workers->updateStatus("N");

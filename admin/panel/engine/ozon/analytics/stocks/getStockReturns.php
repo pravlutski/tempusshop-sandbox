@@ -171,4 +171,5 @@ class StockReturns
 }
 
 ( new StockReturns($argv[1]) )->run();
+$workers->updateStatus("N");
  ?>

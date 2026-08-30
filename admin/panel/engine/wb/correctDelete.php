@@ -42,3 +42,4 @@ class checkFBO{
 }
 
 (new checkFBO())->run();
+$workers->updateStatus("N");

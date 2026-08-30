@@ -107,4 +107,5 @@ class ImportOrders extends ImportBase
 
 $obj = new ImportOrders( 'WR' );
 $obj->run();
+$workers->updateStatus("N");
 ?>

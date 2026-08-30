@@ -240,4 +240,5 @@ class SppAnalyticsCollector
 }
 
 (new SppAnalyticsCollector)->run();
+$workers->updateStatus("N");
  ?>

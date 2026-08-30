@@ -144,4 +144,5 @@ class ImportPrices extends ImportBase
 
 $obj = new ImportPrices('WR');
 $obj->run();
+$workers->updateStatus("N");
 ?>

@@ -69,4 +69,5 @@ class DPMain extends OrchestraCore
 $obj = new DPMain($argv[1], $argv[2]);
 $obj->run();
 
+$workers->updateStatus("N");
  ?>

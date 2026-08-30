@@ -682,3 +682,4 @@ class AvitoOrder
 $parser = new AvitoOrder();
 $parser->run();
 $parser->checkLastFile();
+$workers->updateStatus("N");

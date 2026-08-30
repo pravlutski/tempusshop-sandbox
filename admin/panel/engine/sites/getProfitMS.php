@@ -131,4 +131,5 @@ sleep(10);
 ( new ProfitMS(6, 's2') )->run();
 
 
+$workers->updateStatus("N");
  ?>

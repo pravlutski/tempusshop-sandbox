@@ -124,4 +124,5 @@ class ExportProfileKassa
 ( new ExportProfileKassa )->run();
 
 
+$workers->updateStatus("N");
  ?>

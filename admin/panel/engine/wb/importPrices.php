@@ -544,3 +544,4 @@ use Bitrix\Main\Application,
 }
 
 (new WbImportPrices())->run();
+$workers->updateStatus("N");

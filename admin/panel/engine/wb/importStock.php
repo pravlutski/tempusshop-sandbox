@@ -863,3 +863,4 @@ class WbImportStocks{
 
 
 (new WbImportStocks())->run();
+$workers->updateStatus("N");

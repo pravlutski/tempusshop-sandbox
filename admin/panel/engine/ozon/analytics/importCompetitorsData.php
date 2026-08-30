@@ -223,4 +223,5 @@ catch ( Throwable $e) {
   // writeLog("Ошибка записи в таблицу: {$e}");
   die("Ошибка записи в таблицу: {$e}");
 }
+$workers->updateStatus("N");
  ?>

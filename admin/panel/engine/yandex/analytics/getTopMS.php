@@ -56,4 +56,5 @@ class TopProfitYandex
 }
 
 (new TopProfitYandex)->run();
+$workers->updateStatus("N");
 ?>

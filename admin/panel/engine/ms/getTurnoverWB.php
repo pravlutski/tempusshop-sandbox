@@ -287,3 +287,4 @@ class GetTurnover{
 }
 
 (new GetTurnover())->run();
+$workers->updateStatus("N");

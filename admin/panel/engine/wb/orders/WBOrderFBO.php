@@ -342,4 +342,5 @@ class WBOrderFBO
 }
 
 (new WBOrderFBO( $argv[1] ))->run();
+$workers->updateStatus("N");
  ?>

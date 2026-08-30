@@ -571,4 +571,5 @@ class WBOrderMain {
 }
 $cab = $argv[1];
 ( new WBOrderMain($cab) )->run();
+$workers->updateStatus("N");
  ?>

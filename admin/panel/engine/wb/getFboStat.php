@@ -264,4 +264,5 @@ $cab = $argv[1] ?? '';
 if ( !in_array($cab,['WR','TL']) ) $cab = 'WR';
 
 ( new WBFboStat( $cab ) )->run();
+$workers->updateStatus("N");
  ?>

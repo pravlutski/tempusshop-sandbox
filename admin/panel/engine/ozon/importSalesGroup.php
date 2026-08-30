@@ -59,3 +59,4 @@ require_once 'importSales_v4.php';
 // (new OzonImportSalesClass($CABINET))->UpdateTmpTable();
 (new SalesManager($CABINET))->run();
 // (new OzonImportPricesSales($CABINET))->run();
+$workers->updateStatus("N");

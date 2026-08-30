@@ -200,4 +200,5 @@ echo "\n✓ Сбор данных завершен. Найдено товаро�
 echo "Файл с полным списком: wb_alltime.csv\n";
 
 fclose($fp_all);
+$workers->updateStatus("N");
 ?>

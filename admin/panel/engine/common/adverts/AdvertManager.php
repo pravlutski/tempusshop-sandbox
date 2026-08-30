@@ -86,4 +86,5 @@ class AdvertManager
 $obj = new AdvertManager( $argv[1] );
 $obj->run();
 
+$workers->updateStatus("N");
 ?>

@@ -16,4 +16,5 @@ require($_SERVER["DOCUMENT_ROOT"]."/admin/modules/descGen/classes/DescriptionGen
 $ogjGen = new DescriptionGenerator();
 $ogjGen->cron();
 
+$workers->updateStatus("N");
  ?>

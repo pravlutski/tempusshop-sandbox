@@ -186,4 +186,5 @@ foreach($arAlready as $ID){
 }
 
 
+$workers->updateStatus("N");
 ?>

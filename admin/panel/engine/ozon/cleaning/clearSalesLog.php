@@ -49,4 +49,5 @@ class SalesLogCleaner
 }
 
 (new SalesLogCleaner)->run();
+$workers->updateStatus("N");
  ?>

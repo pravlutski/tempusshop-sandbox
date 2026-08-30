@@ -271,4 +271,5 @@ class AnalyticsCsv
 }
 
 ( new AnalyticsCsv )->run();
+$workers->updateStatus("N");
  ?>

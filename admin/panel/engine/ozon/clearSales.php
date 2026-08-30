@@ -108,3 +108,4 @@ class ClearSales{
 //(new OzonImportSales())->run();
 (new ClearSales("TI"))->run();
 (new ClearSales("IP"))->run();
+$workers->updateStatus("N");

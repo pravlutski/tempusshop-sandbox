@@ -310,4 +310,5 @@ class OzonFBOStat
 
 (new OzonFBOStat($argv[1] ?? 'TI'))->run();
 
+$workers->updateStatus("N");
  ?>

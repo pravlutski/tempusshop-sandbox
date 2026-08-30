@@ -50,4 +50,5 @@ if($rs['status'] == 'update'){
 	CPanelPricelist::updateProps($rs['items'] ?? []);
 }
 //require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
+$workers->updateStatus("N");
 ?>

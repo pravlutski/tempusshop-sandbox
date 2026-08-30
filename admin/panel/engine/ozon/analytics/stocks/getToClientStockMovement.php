@@ -188,4 +188,5 @@ class ClientStockMovement
 }
 
 (new ClientStockMovement)->run();
+$workers->updateStatus("N");
  ?>

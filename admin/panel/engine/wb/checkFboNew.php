@@ -1106,3 +1106,4 @@ class checkFBONEW
 }
 
 (new checkFBONEW($argv[1]))->run();
+$workers->updateStatus("N");
