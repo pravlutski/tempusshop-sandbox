@@ -21,10 +21,16 @@ $mainFields = sendTempusMainFields();
 ?>
 
 <h1 class="page-header">Отправка изменений в Tempus</h1>
-<p class="text-muted">Отправка выбранных свойств и полей товаров в систему Tempus. Если заполнены и ID, и артикулы — используются ID товаров.</p>
+<p class="text-muted">Отправка выбранных свойств и полей товаров в систему Tempus. Если заполнены и ID, и артикулы — используются ID товаров. Галка «Выгрузить все активные товары» игнорирует оба списка.</p>
 
 <form id="send-tempus-form" class="send-tempus-form">
 	<?=bitrix_sessid_post()?>
+	<div class="send-tempus-all-active">
+		<label for="all_active" style="font-weight: 600;">
+			<input type="checkbox" id="all_active" name="all_active" value="Y">
+			Выгрузить все активные товары
+		</label>
+	</div>
 	<div class="row">
 		<div class="col-sm-6">
 			<label for="product_ids">ID товаров</label>
@@ -81,6 +87,9 @@ $mainFields = sendTempusMainFields();
 <style>
 .send-tempus-form { max-width: 1100px; }
 .send-tempus-form label { display: block; font-weight: 600; margin-bottom: 6px; }
+.send-tempus-all-active { margin-bottom: 16px; }
+.send-tempus-all-active input { margin-right: 6px; vertical-align: middle; }
+.send-tempus-form textarea:disabled { background: #eee; }
 .send-tempus-select-toolbar { margin-bottom: 6px; font-size: 12px; }
 .send-tempus-select-toolbar a { color: #337ab7; }
 .send-tempus-log {
@@ -141,6 +150,13 @@ $mainFields = sendTempusMainFields();
 		$('#' + id + ' option').prop('selected', false);
 	});
 
+	function toggleLists() {
+		var allActive = $('#all_active').prop('checked');
+		$('#product_ids, #product_articles').prop('disabled', allActive);
+	}
+	$('#all_active').on('change', toggleLists);
+	toggleLists();
+
 	function sendChunk(chunks, index, props, fields, sessid) {
 		if (index >= chunks.length) {
 			setProgress(chunks.length, chunks.length);
@@ -179,6 +195,7 @@ $mainFields = sendTempusMainFields();
 		e.preventDefault();
 		var $form = $(this);
 		var sessid = $form.find('input[name="sessid"]').val();
+		var allActive = $('#all_active').prop('checked');
 		var productIds = $('#product_ids').val();
 		var productArticles = $('#product_articles').val();
 		var props = selectedValues('props');
@@ -188,8 +205,8 @@ $mainFields = sendTempusMainFields();
 		$('.send-tempus-progress').hide();
 		setProgress(0, 1);
 
-		if (!$.trim(productIds) && !$.trim(productArticles)) {
-			log('Укажите ID товаров или артикулы', 'error');
+		if (!allActive && !$.trim(productIds) && !$.trim(productArticles)) {
+			log('Укажите ID товаров или артикулы, либо включите выгрузку всех активных', 'error');
 			return;
 		}
 		if (!props.length && !fields.length) {
@@ -198,7 +215,7 @@ $mainFields = sendTempusMainFields();
 		}
 
 		$('#send-tempus-submit').prop('disabled', true);
-		log('Ищем товары...');
+		log(allActive ? 'Собираем все активные товары...' : 'Ищем товары...');
 
 		$.ajax({
 			url: ajaxUrl,
@@ -207,8 +224,9 @@ $mainFields = sendTempusMainFields();
 			data: {
 				action: 'resolve',
 				sessid: sessid,
-				product_ids: productIds,
-				product_articles: productArticles,
+				all_active: allActive ? 'Y' : 'N',
+				product_ids: allActive ? '' : productIds,
+				product_articles: allActive ? '' : productArticles,
 				props: props,
 				fields: fields
 			}
@@ -222,7 +240,13 @@ $mainFields = sendTempusMainFields();
 				return;
 			}
 
-			log('Найдено товаров: ' + resp.count + ' (по ' + (resp.source === 'ID' ? 'ID' : 'артикулам') + ')');
+			var sourceLabel = 'артикулам';
+			if (resp.source === 'ALL') {
+				sourceLabel = 'всем активным';
+			} else if (resp.source === 'ID') {
+				sourceLabel = 'ID';
+			}
+			log('Найдено товаров: ' + resp.count + ' (по ' + sourceLabel + ')');
 			if (resp.notFound && resp.notFound.length) {
 				log('Не найдены артикулы: ' + resp.notFound.join(', '), 'error');
 			}

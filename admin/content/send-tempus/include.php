@@ -65,8 +65,38 @@ function sendTempusGetIblockProps($iblockId)
 	return $props;
 }
 
-function sendTempusResolveIds($idsText, $articlesText, $iblockId)
+function sendTempusGetAllActiveIds($iblockId)
 {
+	$ids = [];
+	if (!CModule::IncludeModule('iblock')) {
+		return $ids;
+	}
+	$res = CIBlockElement::GetList(
+		[],
+		[
+			'IBLOCK_ID' => (int)$iblockId,
+			'ACTIVE' => 'Y',
+		],
+		false,
+		false,
+		['ID']
+	);
+	while ($element = $res->Fetch()) {
+		$ids[] = (int)$element['ID'];
+	}
+	return array_values(array_unique($ids));
+}
+
+function sendTempusResolveIds($idsText, $articlesText, $iblockId, $allActive = false)
+{
+	if ($allActive) {
+		return [
+			'ids' => sendTempusGetAllActiveIds($iblockId),
+			'notFound' => [],
+			'source' => 'ALL',
+		];
+	}
+
 	$rawIds = sendTempusParseList($idsText);
 	$articles = sendTempusParseList($articlesText);
 

@@ -34,10 +34,12 @@ $iblockId = SEND_TEMPUS_IBLOCK_ID;
 
 try {
 	if ($action === 'resolve') {
+		$allActive = ($_POST['all_active'] ?? '') === 'Y';
 		$resolved = sendTempusResolveIds(
 			$_POST['product_ids'] ?? '',
 			$_POST['product_articles'] ?? '',
-			$iblockId
+			$iblockId,
+			$allActive
 		);
 
 		$allowedProps = sendTempusGetIblockProps($iblockId);
